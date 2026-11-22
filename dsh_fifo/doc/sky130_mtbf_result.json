@@ -1,0 +1,80 @@
+{
+  "pdk": "SkyWater SKY130 (sky130_fd_sc_hd)",
+  "cell": "sky130_fd_sc_hd__dfxtp_1",
+  "corner": "tt_025C_1v80",
+  "source_files": [
+    "sky130_fd_sc_hd__dfxtp_1__tt_025C_1v80.lib.json",
+    "sky130_fd_sc_hd__dfxtp_1.spice"
+  ],
+  "cell_area_um2": 20.0192,
+  "cell_leakage_mW": 0.008438635,
+  "input_cap_fF": {
+    "CLK": 1.794,
+    "D": 1.678
+  },
+  "timing_ns": {
+    "setup_rising_fall_constraint": {
+      "mean": 0.2384095,
+      "min": -0.0966654,
+      "max": 0.6206849
+    },
+    "setup_rising_rise_constraint": {
+      "mean": 0.08758484444444445,
+      "min": -0.0453958,
+      "max": 0.2434876
+    },
+    "hold_rising_fall_constraint": {
+      "mean": -0.17350998888888888,
+      "min": -0.5178079,
+      "max": 0.1409486
+    },
+    "hold_rising_rise_constraint": {
+      "mean": -0.06134092222222222,
+      "min": -0.1857767,
+      "max": 0.0579408
+    },
+    "clk2q_cell_fall": {
+      "mean": 0.47445878775510203,
+      "min": 0.2652426,
+      "max": 1.05538
+    },
+    "clk2q_cell_rise": {
+      "mean": 0.5897205530612245,
+      "min": 0.2692208,
+      "max": 1.5599231
+    }
+  },
+  "spice_transistors": 24,
+  "tau_estimate": {
+    "gm_n_uS": 660.2924487804878,
+    "gm_p_uS": 198.0877346341463,
+    "gm_loop_uS": 429.190091707317,
+    "c_gate_fF": 1.061184292682927,
+    "c_drain_fF": 1.512,
+    "c_node_fF": 3.634368585365854,
+    "tau_min_ps": 20.0,
+    "tau_typ_ps": 55.48621615202278,
+    "tau_max_ps": 60.0
+  },
+  "mtbf_log10_years": {
+    "4.0ns_2stage_tau_min": 58.69915309952088,
+    "4.0ns_2stage_tau_typ": 12.46277565965269,
+    "4.0ns_2stage_tau_max": 10.502380551281773,
+    "4.0ns_3stage_tau_min": 145.55804948017123,
+    "4.0ns_3stage_tau_typ": 43.77105450954644,
+    "4.0ns_3stage_tau_max": 39.45534601149856,
+    "10.0ns_2stage_tau_min": 189.38543767916843,
+    "10.0ns_2stage_tau_typ": 59.823133943165324,
+    "10.0ns_2stage_tau_max": 54.32976875027898,
+    "10.0ns_3stage_tau_min": 406.5326786307944,
+    "10.0ns_3stage_tau_typ": 138.09383106789969,
+    "10.0ns_3stage_tau_max": 126.71218240082096,
+    "1.0ns_2stage_tau_min": -7.0470791772948616,
+    "1.0ns_2stage_tau_typ": -11.62049346909558,
+    "1.0ns_2stage_tau_max": -11.814403535208783,
+    "1.0ns_3stage_tau_min": 14.667644917867728,
+    "1.0ns_3stage_tau_typ": -3.793423756622145,
+    "1.0ns_3stage_tau_max": -4.576162170154586
+  },
+  "note": "t_setup/t_skew 与 clk-to-Q 来自 PDK 的 Liberty 数据（真实）；tau 由 SPICE 网表的真实 w/l 乘 SKY130 工艺参数估算，受 µ/Vov 分布影响给出区间。T_w 取 50 ps 典型值。"
+}

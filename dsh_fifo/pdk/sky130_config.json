@@ -1,0 +1,24 @@
+{
+  "name": "SKY130",
+  "standard_cell_library": {
+    "repository": "https://github.com/google/skywater-pdk-libs-sky130_fd_sc_hd.git",
+    "revision": "ac7fb61f06e6470b94e8afdf7c25268f62fbd7b1",
+    "cell": "sky130_fd_sc_hd__dfxtp_1",
+    "liberty_json": "sky130_fd_sc_hd/cells/dfxtp/sky130_fd_sc_hd__dfxtp_1__tt_025C_1v80.lib.json",
+    "spice_netlist": "sky130_fd_sc_hd/cells/dfxtp/sky130_fd_sc_hd__dfxtp_1.spice",
+    "corner": "tt_025C_1v80"
+  },
+  "transistor_models": {
+    "repository": "https://github.com/google/skywater-pdk-libs-sky130_fd_pr.git",
+    "revision": "f62031a1be9aefe902d6d54cddd6f59b57627436",
+    "models_root": "sky130_fd_pr/models",
+    "nfet_corner": "sky130_fd_pr/cells/nfet_01v8/sky130_fd_pr__nfet_01v8__tt.corner.spice",
+    "pfet_corner": "sky130_fd_pr/cells/pfet_01v8_hvt/sky130_fd_pr__pfet_01v8_hvt__tt.corner.spice"
+  },
+  "metric_units": {
+    "liberty_time": "ns",
+    "liberty_capacitance": "pF",
+    "cell_area": "um^2",
+    "cell_leakage_power": "uW"
+  }
+}

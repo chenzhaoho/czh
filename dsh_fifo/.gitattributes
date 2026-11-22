@@ -1,0 +1,7 @@
+* text=auto eol=lf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+*.py text eol=lf
+*.tcl text eol=lf
+*.do text eol=lf
+*.png binary

@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>双异步 FIFO · 实时 RTL 终端</title>
+<style>
+:root{--bg:#f2f5f7;--paper:#fff;--ink:#172b38;--muted:#627580;--line:#dce4e8;--a:#087f83;--b:#7354b5;--danger:#b34238;--green:#267754;--mono:Consolas,"SFMono-Regular",monospace}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 "Segoe UI","Microsoft YaHei",sans-serif}button,textarea{font:inherit}button{cursor:pointer;border:1px solid var(--line);border-radius:7px;background:#fff;color:var(--ink);padding:8px 12px;line-height:1.3;font-weight:600}button:hover{border-color:#8b9fa9;background:#f5f9fa}button:disabled{opacity:.4;cursor:not-allowed}button.primary{background:var(--a);border-color:var(--a);color:white}button.danger{color:var(--danger)}a{color:var(--a);text-decoration:none}a:hover{text-decoration:underline}.mono{font-family:var(--mono)}.small{font-size:12px}.muted{color:var(--muted)}.badge{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);padding:3px 9px;border-radius:30px;font-size:12px;white-space:nowrap}.dot{width:7px;height:7px;display:inline-block;background:var(--green);border-radius:50%}.offline .dot{background:var(--danger)}.offline{color:var(--danger)}
+header{background:#112b36;color:white;padding:22px max(24px,calc((100vw - 1380px)/2));border-bottom:4px solid #31a5a6}.mast{display:flex;align-items:center;justify-content:space-between;gap:20px}.eyebrow{font:11px var(--mono);letter-spacing:2px;color:#8bd6d4}h1{font-size:27px;letter-spacing:.5px;margin:5px 0 6px;font-weight:650}header p{margin:0;color:#bdced5;font-size:13px}.runtime{display:flex;align-items:center;gap:14px;flex-wrap:wrap;justify-content:flex-end}.runtime .badge{border-color:#45616c;color:#c4f0de}.runtime .offline{color:#ffb3a6}.runtime strong{font:22px var(--mono);display:block;text-align:right}.runtime small{color:#a7c1cb;display:block;text-align:right}
+main{max-width:1428px;margin:auto;padding:20px 24px 35px}.notice{display:none;background:#fff0ec;border:1px solid #edc2b6;padding:11px 15px;border-radius:8px;margin-bottom:14px;color:#983b30}.guide{display:flex;align-items:center;justify-content:space-between;gap:18px;background:#e4eff0;border:1px solid #d2e3e5;padding:14px 18px;border-radius:10px;margin-bottom:18px}.guide strong{display:block;font-size:15px}.guide p{margin:3px 0 0;font-size:12px;color:#496974}.actions{display:flex;gap:8px;flex-wrap:wrap}.sectionline{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:10px}.sectionline h2{font-size:15px;margin:0}.twocol{display:grid;grid-template-columns:1fr 1fr;gap:18px}.card{background:var(--paper);border:1px solid var(--line);border-radius:10px;overflow:hidden}.fifo{border-top:3px solid var(--a);padding:15px 18px}.fifo.ba{border-top-color:var(--b)}.fifo-top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}.flowname{font-weight:700;font-size:17px}.flowname span{color:var(--a);margin:0 8px}.ba .flowname span{color:var(--b)}.instance{font:11px var(--mono);color:var(--muted);margin-top:2px}.fulltag{color:var(--danger);border-color:#e4b6a9;background:#fff4ef}.emptytag{color:var(--muted)}.occupancy{display:flex;justify-content:space-between;align-items:baseline;margin:10px 0 5px}.occupancy strong{font:30px var(--mono);letter-spacing:-1px}.occupancy strong small{font-size:14px;color:var(--muted);letter-spacing:0}.grid{display:grid;grid-template-columns:repeat(32,1fr);gap:3px;margin:5px 0 10px}.cell{height:6px;border-radius:1px;background:#eaf0f2}.cell.used{background:var(--a)}.ba .cell.used{background:var(--b)}.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;padding:10px 0;border-top:1px solid #edf1f2;border-bottom:1px solid #edf1f2}.metrics strong{display:block;font:20px var(--mono)}.metrics span{font-size:11px;color:var(--muted)}.signalrow{display:flex;gap:12px;flex-wrap:wrap;font:11px var(--mono);padding:9px 0;color:var(--muted)}.signalrow b{color:var(--ink)}.pointers{display:grid;grid-template-columns:1fr 1fr;gap:8px}.pointer{background:#f5f8f9;border-radius:5px;padding:8px 10px;font-size:11px}.pointer .mono{font-size:12px;display:block;margin-top:2px;color:var(--ink)}.pointer .sync{font:10px var(--mono);color:var(--muted);margin-top:4px;overflow-wrap:anywhere}.explain{font-size:11px;color:var(--muted);margin:9px 0 0}
+.terminals{margin-top:18px}.terminalhead{padding:12px 16px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:12px}.endpoint{display:flex;align-items:center;gap:10px}.avatar{display:grid;place-items:center;border-radius:7px;width:34px;height:34px;background:#dcefee;color:var(--a);font:700 19px var(--mono)}.terminal.b .avatar{background:#eee8f8;color:var(--b)}.endpoint strong{font-size:14px}.endpoint small{display:block;font-size:11px;color:var(--muted)}.terminalhead button{font-size:12px}.terminalhead button.paused{background:#fff1e7;color:#9c5724;border-color:#e8cbb1}.messages{height:270px;overflow:auto;padding:14px 16px;background:#fbfcfd;scroll-behavior:auto}.empty{height:100%;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;color:var(--muted);font-size:12px}.empty strong{font-size:24px;color:#b5c6ce;margin-bottom:10px;font-family:var(--mono)}.msg{max-width:88%;margin:0 0 12px}.msg.sent{margin-left:auto}.msg .meta{font-size:10px;color:var(--muted);margin:3px 2px}.msg.sent .meta{text-align:right}.bubble{background:#fff;border:1px solid #e0e6ea;border-radius:8px;padding:8px 11px;white-space:pre-wrap;overflow-wrap:anywhere;font-size:13px}.msg.sent .bubble{background:#e7f1f0;border-color:#d5e9e6}.terminal.b .msg.sent .bubble{background:#eee9f7;border-color:#e2d8f0}.verified{color:var(--green)}.composer{padding:11px 14px;border-top:1px solid var(--line)}textarea{width:100%;height:57px;resize:vertical;border:1px solid #d7e1e5;border-radius:6px;padding:8px 10px;outline:none;background:#fff;font-size:13px}textarea:focus{border-color:var(--a)}.composerfoot{display:flex;align-items:center;justify-content:space-between;margin-top:7px;gap:8px}.composerfoot .muted{font-size:10px}.sendbtn{min-width:85px}.terminal.b .primary{background:var(--b);border-color:var(--b)}
+.evidence{margin-top:20px;padding:17px 19px}.proofmetrics{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin:13px 0}.proofmetric{border-right:1px solid var(--line)}.proofmetric:last-child{border:none}.proofmetric strong{display:block;font:23px var(--mono)}.proofmetric span{font-size:11px;color:var(--muted)}.challenge{background:#f2f7f5;padding:9px 12px;border-radius:6px;font-size:12px;display:flex;justify-content:space-between;gap:10px;align-items:center}.challenge .mono{font-size:11px;overflow-wrap:anywhere}.tablewrap{overflow:auto;max-height:258px;margin-top:12px;border:1px solid var(--line);border-radius:6px}table{border-collapse:collapse;width:100%;white-space:nowrap;font:11px var(--mono)}th{background:#f1f5f7;color:var(--muted);font-weight:500;position:sticky;top:0}th,td{padding:6px 12px;border-bottom:1px solid #edf1f3;text-align:right}th:nth-child(2),td:nth-child(2),th:nth-child(3),td:nth-child(3){text-align:center}td:nth-child(3){color:var(--a)}.downloads{display:flex;justify-content:space-between;gap:14px;align-items:center;margin-top:11px;flex-wrap:wrap}.downloads nav{display:flex;gap:18px;font-size:12px}.controls{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-top:18px;flex-wrap:wrap}.controls .actions{align-items:center}.controls label{display:flex;gap:6px;align-items:center;font-size:12px}.sources{font-size:11px;color:var(--muted);border-top:1px solid var(--line);padding-top:14px;margin-top:18px;overflow-wrap:anywhere}.sources summary{cursor:pointer}.sourcegrid{display:grid;grid-template-columns:auto 1fr;gap:5px 20px;font:11px var(--mono);margin-top:10px}.footer{margin-top:12px;font-size:11px;color:var(--muted)}
+.modelrun{margin:0 0 18px;background:#102731;color:#dce9ee;border-color:#294550}.modelrun-head{padding:12px 17px;display:flex;justify-content:space-between;align-items:center;gap:12px;border-bottom:1px solid #2a434e;flex-wrap:wrap}.modelrun-head h2{font-size:15px;margin:0}.modelrun-head small{display:block;color:#9ab4c0;font-size:11px}.modelrun-head button{background:#1c3945;color:#d9ebef;border-color:#45616d;font-size:12px}.modelrun .badge{color:#9ee6bd;border-color:#3d6759}.modelrun .offline{color:#ffb8aa;border-color:#854e46}.modelrun-metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;padding:12px 17px}.modelrun-metrics strong{display:block;font:17px var(--mono);overflow-wrap:anywhere}.modelrun-metrics small{color:#9ab4c0;font-size:10px}.modelrun-metrics .status-word{font:14px "Microsoft YaHei",sans-serif}.logtabs{display:flex;align-items:center;gap:5px;flex-wrap:wrap;background:#15323e;padding:7px 12px}.logtabs button{font-size:11px;background:transparent;border-color:transparent;color:#a7bdc8;padding:5px 10px}.logtabs button[aria-selected=true]{background:#284b59;color:white;border-color:#456c7d}.logtabs label{margin-left:auto;color:#b3c8d1;font-size:11px;display:flex;align-items:center;gap:5px}.runtime-log{margin:0;padding:12px 17px;height:180px;overflow:auto;white-space:pre;tab-size:2;background:#0b202a;color:#b5e3cc;font:11px/1.65 var(--mono)}.modelrun-foot{padding:9px 17px;border-top:1px solid #29434f;color:#a5beca;font-size:11px}.modelrun-foot p{margin:3px 0;overflow-wrap:anywhere}.runtime-launch{font:10px var(--mono);color:#8caab7}.modelrun-foot nav{display:flex;justify-content:space-between;gap:10px;margin-top:7px;flex-wrap:wrap}.modelrun a{color:#80cfcc}.modelrun .reply{color:#b6d2d8;font:10px var(--mono)}
+.run-mode-label{display:flex;align-items:center;gap:7px;font-size:12px;color:#b3c8d1}.run-mode-label select{font:inherit;color:#d9ebef;background:#1c3945;border:1px solid #45616d;border-radius:6px;padding:6px;max-width:170px}.modelrun-head .actions{align-items:center}.modelrun-foot .advance-note{color:#a0ddd0;margin:7px 0}.run-mode-label select:disabled{opacity:.4}
+@media(min-width:1700px){.messages{height:310px}}@media(max-width:900px){header{padding:20px}.mast{align-items:flex-start}h1{font-size:21px}.runtime{gap:7px}.runtime strong{font-size:17px}.runtime .version{display:none}.guide{align-items:flex-start;flex-direction:column}.twocol{gap:12px}main{padding:15px}.fifo{padding:12px}.metrics{gap:4px}.metrics strong{font-size:17px}.pointer{padding:7px}.pointers{gap:4px}.pointer .mono{font-size:11px}.terminalhead{padding:10px}.terminalhead button{padding:7px;font-size:11px}.avatar{width:28px;height:30px}.sourcegrid{grid-template-columns:1fr}.grid{gap:2px}}@media(max-width:650px){.mast{flex-direction:column;gap:12px}.runtime{width:100%;justify-content:space-between}.runtime strong,.runtime small{text-align:left}.twocol{grid-template-columns:1fr}.guide .actions{width:100%}.guide button{flex:1;font-size:12px}.proofmetrics{grid-template-columns:1fr 1fr}.proofmetric:nth-child(2){border:0}.challenge{align-items:flex-start;flex-direction:column}.sectionline{align-items:flex-start;flex-direction:column}.controls{align-items:flex-start}.messages{height:235px}.downloads nav{gap:11px;flex-wrap:wrap}.sources{font-size:10px}}
+@media(max-width:650px){.modelrun-metrics{grid-template-columns:1fr 1fr}.modelrun-head{padding:12px}.runtime-log{padding:10px 12px;height:200px}.logtabs label{margin-left:0}.modelrun-foot{padding:9px 12px}}
+</style>
+</head>
+<body>
+<header>
+ <div class="mast"><div><div class="eyebrow">LIVE RTL / TWO CLOCK DOMAINS</div><h1>双异步 FIFO · 双向信息终端</h1><p>在同一台主机上，输入新文字，观察两条真实 RTL 数据通路。</p></div>
+ <div class="runtime"><span class="badge" id="connection"><i class="dot"></i><span id="connectionText">连接中</span></span><div class="version"><small>SIMULATOR PROCESS</small><strong id="pid">—</strong></div><div><small>仿真时间 / ns</small><strong id="simtime">—</strong></div></div></div>
+</header>
+<main>
+ <div id="notice" class="notice" role="alert"></div>
+ <div class="guide"><div><strong>先制造一个真实的“堵车”</strong><p>暂停 B 接收并从 A 突发发送：A→B 将填满 256 字，B→A 仍可传消息。恢复 B 后，积压内容按序读出。</p></div><div class="actions"><button class="primary requires-live" id="scenario">运行堵塞实验</button><button class="requires-live" id="challenge">双向随机挑战</button></div></div>
+ <section class="card modelrun" aria-label="ModelSim 运行实况">
+  <div class="modelrun-head"><div><h2>ModelSim / 运行实况</h2><small>直接读取仿真器原始文件，不生成演示日志</small></div><div class="actions"><label class="run-mode-label">推进模式<select class="requires-live" id="run-mode" aria-label="仿真推进模式"><option value="demand">按需（推荐）</option><option value="continuous">连续运行</option><option value="manual">手动单步</option></select></label><span class="badge" id="runtime-status">连接中</span><button id="native-modelsim">启用原生窗口（新会话）</button></div></div>
+  <div class="modelrun-metrics"><div><strong id="runtime-pid">—</strong><small>实际进程 PID / 运行模式</small></div><div><strong id="runtime-time">—</strong><small>仿真器返回时间 / ns</small></div><div><strong id="runtime-count">—</strong><small>收到回执 / 发出命令</small></div><div><strong class="status-word" id="runtime-activity">等待连接</strong><small id="runtime-age">—</small></div></div>
+  <div class="logtabs" role="tablist" aria-label="运行日志"><button id="log-tab-transcript" role="tab" aria-selected="true" data-log="transcript">原始 Transcript</button><button id="log-tab-commands" role="tab" aria-selected="false" data-log="commands">执行命令 / 回执</button><button id="log-tab-compile" role="tab" aria-selected="false" data-log="compile">RTL 编译日志</button><label><input type="checkbox" id="runtime-follow" checked>自动滚动</label></div>
+  <pre class="runtime-log" id="runtime-log" role="tabpanel" aria-label="ModelSim 原始日志">正在读取本机仿真器日志…</pre>
+  <div class="modelrun-foot"><p id="advance-note" class="advance-note">按需模式：发送或恢复接收后推进；传完或堵塞后自动暂停，不持续刷日志。</p><p id="runtime-last" class="reply">最近命令：—</p><details><summary>真实启动命令 / 日志文件</summary><p class="runtime-launch" id="runtime-launch">—</p><p class="runtime-launch" id="runtime-path">—</p></details><nav><span id="runtime-mode-help">原生窗口模式会打开当前会话的 Transcript 与 Wave，可和网页并排查看。</span><span><a href="/api/transcript.txt" download>完整 Transcript</a> · <a href="/api/commands.txt" download>完整命令回执</a></span></nav></div>
+ </section>
+ <div class="sectionline"><h2>两条独立 FIFO</h2><span class="small muted">clk_A = 10 ns · clk_B = 14 ns，相位偏移 1.701 ns · 2 级 Gray 指针同步</span></div>
+ <div class="twocol" id="fifos"></div>
+ <div class="twocol terminals" id="terminals"></div>
+ <section class="card evidence">
+  <div class="sectionline"><h2>用原始读写记录核对结果</h2><span class="small muted">收件内容 = RTL 读握手数据 → UTF-8 解码 → CRC32 校验</span></div>
+  <div class="proofmetrics"><div class="proofmetric"><strong id="readwords">0</strong><span>逐字比对成功 / 32 bit</span></div><div class="proofmetric"><strong id="received">0 / 0</strong><span>CRC32 通过 / 已提交消息</span></div><div class="proofmetric"><strong id="handshakes">0</strong><span>真实 W / R 握手记录</span></div><div class="proofmetric"><strong id="errors">—</strong><span>数据顺序、指针、保持断言错误</span></div></div>
+  <div class="challenge"><span id="challengeStatus">随机挑战：每次生成新内容，两个方向均实际读出并校验后才通过。</span><span class="mono" id="nonce">尚未发起</span></div>
+  <div class="tablewrap"><table><thead><tr><th>仿真时间 ns</th><th>FIFO</th><th>握手</th><th>data[31:0]</th><th>wr_bin</th><th>rd_bin</th><th>wr_gray</th><th>rd_gray</th></tr></thead><tbody id="events"></tbody></table></div>
+  <div class="downloads"><span class="small muted">W = valid ∧ ready；R = valid ∧ ready。指针为该握手沿更新前的值。</span><nav><a href="/api/bundle.zip" download>同一时刻证据包 ZIP</a><a href="/api/events.csv" download>原始 CSV</a><a href="/api/wave.vcd" download>RTL 波形 VCD</a><a href="/api/evidence.json" download>校验 JSON</a></nav></div>
+ </section>
+ <div class="controls"><div class="actions"><button class="requires-live" id="step">推进 200 ns</button><button class="requires-live" id="reset">复位并清空本轮</button><span class="small muted">推进模式在上方 ModelSim 运行区选择；自动滚动不控制仿真。</span></div><div class="actions"><button class="danger requires-live" id="stop">停止 ModelSim</button><button id="restart">重启仿真器</button></div></div>
+ <details class="sources"><summary>仿真来源 / 会话与源文件 SHA-256　<span id="session"></span></summary><p>网页通过本机 Python 后端控制正在运行的 ModelSim。发送侧暂存只负责等待 RTL ready；收件箱只采用实际读握手中的数据。消息头和 CRC32 由主机软件处理，FIFO 负责 32 位字的跨时钟传输。</p><div id="hashes" class="sourcegrid"></div><p id="folder" class="mono"></p><p>原始记录和波形包含全部复位轮次；页面计数为当前轮次。重启会建立新会话，历史证据保留在各会话目录。</p></details>
+ <div class="footer">运行于单机的 RTL 功能仿真。仿真时间分批推进，100 MHz / 71.429 MHz 是模型内时钟频率。本页未连接 FPGA 板卡；数字仿真不验证模拟亚稳态。</div>
+</main>
+<script>
+'use strict';
+const TOKEN='__SESSION_TOKEN__';
+const $=id=>document.getElementById(id);
+let state=null,busy=false,renderKey='',eventKey='',polling=false;
+let runtime=null,runtimePolling=false,logTab='transcript';
+const directions=[['ab','A','B'],['ba','B','A']];
+for(const [d,a,b] of directions){
+ const card=document.createElement('section');card.className='card fifo '+d;
+ card.innerHTML=`<div class="fifo-top"><div><div class="flowname">${a} <span>→</span> ${b}</div><div class="instance">dual_fifo_link.u_${d}</div></div><span class="badge emptytag" id="${d}-status">等待仿真</span></div>
+ <div class="occupancy"><strong><span id="${d}-used">0</span><small> / 256 字</small></strong><span class="small muted">W − R 实际未读字数</span></div><div class="grid" id="${d}-grid"></div>
+ <div class="metrics"><div><strong id="${d}-write">0</strong><span>已写入 RTL / 字</span></div><div><strong id="${d}-read">0</strong><span>已读出 RTL / 字</span></div><div><strong id="${d}-pending">0</strong><span>主机待发 / 字</span></div><div><strong id="${d}-stalls">0</strong><span>发送等待 / 时钟周期</span></div></div>
+ <div class="signalrow" id="${d}-signals"></div><div class="pointers"><div class="pointer">写指针 <span class="muted">bin / Gray</span><span class="mono" id="${d}-wp">—</span><div class="sync" id="${d}-ws">—</div></div><div class="pointer">读指针 <span class="muted">bin / Gray</span><span class="mono" id="${d}-rp">—</span><div class="sync" id="${d}-rs">—</div></div></div>
+ <p class="explain" id="${d}-estimate">写侧占用估计 0；读侧占用估计 0。CDC 同步会使本地估计暂时滞后。</p>`;
+ $('fifos').append(card);
+ for(let n=0;n<256;n++){const cell=document.createElement('i');cell.className='cell';$(d+'-grid').append(cell)}
+}
+for(const side of ['a','b']){
+ const el=document.createElement('section');el.className='card terminal '+side;
+ el.innerHTML=`<div class="terminalhead"><div class="endpoint"><div class="avatar">${side.toUpperCase()}</div><div><strong>终端 ${side.toUpperCase()}</strong><small>clk_${side.toUpperCase()} · ${side==='a'?'10':'14'} ns</small></div></div><button class="requires-live" id="receive-${side}">暂停本端接收</button></div><div class="messages" id="messages-${side}"></div><form class="composer" id="form-${side}"><textarea id="input-${side}" placeholder="输入任意文字，Enter 发送，Shift+Enter 换行" maxlength="4096" aria-label="终端 ${side.toUpperCase()} 发送内容"></textarea><div class="composerfoot"><span class="muted" id="bytes-${side}">0 / 4096 UTF-8 字节</span><div class="actions"><button type="button" class="requires-live" id="burst-${side}">突发 40 条</button><button type="submit" class="primary sendbtn requires-live" id="send-${side}">发送 → ${side==='a'?'B':'A'}</button></div></div></form>`;
+ $('terminals').append(el);
+ $("form-"+side).addEventListener('submit',async e=>{e.preventDefault();const text=$('input-'+side).value;if(!text)return;const ok=await action('/api/send',{side,text});if(ok){$('input-'+side).value='';byteCount(side)}});
+ $('input-'+side).addEventListener('input',()=>byteCount(side));
+ $('input-'+side).addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey&&!e.isComposing){e.preventDefault();$('form-'+side).requestSubmit()}});
+ $('receive-'+side).onclick=()=>action('/api/receive',{side,enabled:!state.receiving[side]});
+ $('burst-'+side).onclick=()=>action('/api/burst',{side,count:40});
+}
+function byteCount(side){$('bytes-'+side).textContent=new TextEncoder().encode($('input-'+side).value).length+' / 4096 UTF-8 字节'}
+function notice(text){$('notice').textContent=text;$('notice').style.display=text?'block':'none'}
+function hex(n){return Number(n).toString(16).padStart(8,'0').toUpperCase()}
+function bin(n){return Number(n).toString(2).padStart(9,'0')}
+function ns(ps){return (ps/1000).toLocaleString('en-US',{minimumFractionDigits:3,maximumFractionDigits:3})}
+function smallNode(tag,text,cls){const el=document.createElement(tag);el.textContent=text;if(cls)el.className=cls;return el}
+function runMode(s){return s.run_mode||(s.auto?'continuous':'manual')}
+function advanceStatus(s){return ({idle:'空闲 · 已暂停',blocked:'堵塞 · 已暂停',transferring:'正在传输',settling:'同步收尾',continuous:'连续运行',manual:'手动 · 已暂停',offline:'进程已退出'})[s.advancement?.state]||(s.auto?'连续运行':'手动 · 已暂停')}
+function setBusy(value){busy=value;document.querySelectorAll('.requires-live').forEach(b=>b.disabled=busy||!state?.online);$('restart').disabled=busy;$('native-modelsim').disabled=busy||!!(runtime?.mode==='gui'&&runtime.process_running)}
+async function action(path,data={}){
+ if(busy)return false;setBusy(true);
+ try{const response=await fetch(path,{method:'POST',headers:{'Content-Type':'application/json','X-Terminal-Token':TOKEN},body:JSON.stringify(data)});const result=await response.json();if(!response.ok)throw Error(result.error||'请求失败');notice('');render(result);return true}
+ catch(e){notice(e.message);return false}finally{setBusy(false);pollRuntime()}
+}
+function renderRuntime(r){
+ if(state&&r.session!==state.session)return;
+ runtime=r;
+ const status=$('runtime-status');status.textContent=!r.process_running?'进程已退出':r.fault?'仿真异常':advanceStatus(r);status.classList.toggle('offline',!r.process_running||!!r.fault);
+ $('runtime-pid').textContent=r.pid+' / '+(r.mode==='gui'?'GUI':'CONSOLE');$('runtime-time').textContent=ns(r.time_ps);$('runtime-count').textContent=r.replies_received+' / '+r.commands_sent;
+ $('runtime-activity').textContent=!r.process_running?'已停止':r.fault?'检查错误':({demand:'按需推进',continuous:'连续推进',manual:'手动推进'})[runMode(r)];
+ $('advance-note').textContent=r.advancement?.reason||'按需模式在空闲或堵塞后暂停。';
+ $('runtime-age').textContent=r.reply_age_ms===null?'尚无回执':`最近回执 ${r.reply_age_ms} ms 前 · 往返 ${r.last_roundtrip_ms} ms`;
+ $('runtime-last').textContent='最近命令：'+r.last_command+'　|　实际回执：'+r.last_response;
+ $('runtime-launch').textContent=r.command_line;
+ $('native-modelsim').textContent=r.mode==='gui'&&r.process_running?'原生 ModelSim 窗口已启用':'启用原生窗口（新会话）';
+ $('runtime-mode-help').textContent=r.mode==='gui'?'原生 Transcript / Wave 与网页控制同一份 DUT；波形自动跟随最近 2000 ns。':'当前为无窗口模式；启用原生窗口将保存旧会话证据并重启仿真。';
+ renderLog();setBusy(busy)
+}
+function renderLog(){
+ if(!runtime)return;
+ const log=runtime[logTab],el=$('runtime-log');
+ if(el.textContent!==log.text){el.textContent=log.text||'仿真器尚未写入此日志。';if($('runtime-follow').checked)el.scrollTop=el.scrollHeight}
+ $('runtime-path').textContent=log.path+' · '+log.bytes.toLocaleString()+' 字节（页面显示末尾片段）';
+}
+async function pollRuntime(){
+ if(runtimePolling||busy)return;runtimePolling=true;
+ try{const response=await fetch('/api/runtime',{cache:'no-store'});if(!response.ok)throw Error('读取失败');renderRuntime(await response.json())}
+ catch(e){$('runtime-status').textContent='运行显示连接中断';$('runtime-status').classList.add('offline')}
+ finally{runtimePolling=false}
+}
+document.querySelectorAll('[data-log]').forEach(button=>button.onclick=()=>{logTab=button.dataset.log;document.querySelectorAll('[data-log]').forEach(tab=>tab.setAttribute('aria-selected',String(tab===button)));renderLog()});
+$('runtime-follow').onchange=()=>{if($('runtime-follow').checked)$('runtime-log').scrollTop=$('runtime-log').scrollHeight};
+ $('native-modelsim').onclick=()=>{if(confirm('将重启为原生 ModelSim 窗口模式。旧会话日志和波形会保留，当前页面消息和待发队列会清空，继续吗？'))action('/api/restart',{gui:true})};
+function render(s){
+ state=s;const sig=s.signals;
+ $('connection').classList.toggle('offline',!s.online);$('connectionText').textContent=s.online?'ModelSim 在线 · '+({demand:'按需',continuous:'连续',manual:'手动'})[runMode(s)]:'ModelSim 离线';
+ $('pid').textContent='PID '+s.pid;$('simtime').textContent=ns(s.time_ps);$('session').textContent=s.session+' / 轮次 '+s.epoch;
+ $('run-mode').value=runMode(s);$('folder').textContent=s.folder;
+ if(s.fault)notice(s.fault);else if(!s.online)notice('ModelSim 已停止。收件与指针已冻结；重新启动会建立新会话，清空当前待发内容。');
+ for(const [d,a,b] of directions){
+  const source=a.toLowerCase(),target=b.toLowerCase(),count=s.counts[d.toUpperCase()],used=count.W-count.R;
+  $(d+'-used').textContent=used;$(d+'-write').textContent=count.W;$(d+'-read').textContent=count.R;$(d+'-pending').textContent=sig['pending_'+source];$(d+'-stalls').textContent=sig['stalls_'+source];
+  $(d+'-status').textContent=sig[source+'f']?'FULL · 背压':used===0?'EMPTY':!s.receiving[target]?'接收暂停 · 积压':'传输中';
+  $(d+'-status').className='badge '+(sig[source+'f']?'fulltag':used===0?'emptytag':'');
+  Array.from($(d+'-grid').children).forEach((cell,n)=>cell.classList.toggle('used',n<used));
+  $(d+'-signals').replaceChildren();
+  for(const [name,value] of [['full',sig[source+'f']],['tx_valid',sig[source+'v']],['tx_ready',sig[source+'t']],['rx_valid',sig[target+'x']],['rx_ready',sig[target+'r']]]){
+   const span=smallNode('span',name+'=');span.append(smallNode('b',String(value)));$(d+'-signals').append(span)
+  }
+  $(d+'-wp').textContent=bin(sig[d+'_wr_bin'])+' / '+bin(sig[d+'_wr_gray']);
+  $(d+'-rp').textContent=bin(sig[d+'_rd_bin'])+' / '+bin(sig[d+'_rd_gray']);
+  $(d+'-ws').textContent='送到读域 Gray: '+bin(sig[d+'_wr_gray_sync']);
+  $(d+'-rs').textContent='送到写域 Gray: '+bin(sig[d+'_rd_gray_sync']);
+  $(d+'-estimate').textContent=`写侧占用估计 ${sig[source+'tu']}；读侧占用估计 ${sig[target+'ru']} · 当前写数据 ${hex(sig[source+'d'])} / 读数据 ${hex(sig[target+'q'])}`;
+ }
+ for(const side of ['a','b']){
+  const btn=$('receive-'+side),enabled=s.receiving[side];btn.textContent=enabled?'暂停本端接收':'恢复本端接收';btn.classList.toggle('paused',!enabled)
+ }
+ const key=s.session+':'+s.epoch+':'+s.totals.sent+':'+s.totals.received;
+ if(key!==renderKey){renderKey=key;renderMessages(s)}
+ $('readwords').textContent=s.totals.read_words;$('received').textContent=s.totals.received+' / '+s.totals.sent;$('handshakes').textContent=s.totals.handshakes;
+ $('errors').textContent=s.fault?'FAIL':'0';$('errors').style.color=s.fault?'var(--danger)':'var(--green)';
+ const c=s.challenges.at(-1);if(c){$('nonce').textContent=c.token;$('challengeStatus').textContent=c.passed?'双向挑战通过：两个方向均从 RTL 读出相同随机内容。':'双向挑战等待中：必须两端实际读出；接收暂停时不会判通过。'}else{$('nonce').textContent='尚未发起';$('challengeStatus').textContent='随机挑战：每次生成新内容，两个方向均实际读出并校验后才通过。'}
+ const ek=key+':'+s.totals.handshakes;if(ek!==eventKey){eventKey=ek;$('events').replaceChildren();for(const e of [...s.events].reverse()){
+  const row=document.createElement('tr');for(const v of [ns(e.time_ps),e.direction,e.event,e.data,e.wr_bin,e.rd_bin,e.wr_gray,e.rd_gray])row.append(smallNode('td',String(v)));$('events').append(row)
+ }if(!s.events.length){const row=document.createElement('tr'),cell=smallNode('td','等待真实 RTL 握手；这里不生成演示数据');cell.colSpan=8;cell.style.textAlign='center';row.append(cell);$('events').append(row)}}
+ if($('hashes').dataset.session!==s.session){$('hashes').dataset.session=s.session;$('hashes').replaceChildren();for(const [name,hash] of Object.entries(s.source_hashes)){$('hashes').append(smallNode('span',name),smallNode('span',hash))}}
+ setBusy(busy)
+}
+function renderMessages(s){
+ for(const side of ['a','b']){
+  const box=$('messages-'+side),nearEnd=box.scrollHeight-box.scrollTop-box.clientHeight<60;box.replaceChildren();
+  const rows=[...s.sent.filter(m=>m.source===side).map(m=>({...m,kind:'sent'})),...s.delivered.filter(m=>m.target===side).map(m=>({...m,kind:'received'}))];
+  rows.sort((x,y)=>(x.kind==='sent'?x.sent_ps:x.received_ps)-(y.kind==='sent'?y.sent_ps:y.received_ps)||x.id-y.id);
+  if(!rows.length){const empty=smallNode('div','','empty');empty.append(smallNode('strong',side.toUpperCase()),smallNode('span','输入一条临时想到的文字，验证对端能否收到。'),smallNode('span','对端收件内容只来自 FIFO 的实际读出。'));box.append(empty)}
+  for(const m of rows){const msg=smallNode('div','','msg '+m.kind);const sent=m.kind==='sent';
+   msg.append(smallNode('div',(sent?'发往 '+m.target.toUpperCase():'来自 '+m.source.toUpperCase())+' · #'+m.id+' · '+m.bytes+' B','meta'));
+   msg.append(smallNode('div',m.text,'bubble'));
+   msg.append(smallNode('div',sent?(m.status==='received'?'对端已读出 / CRC32 通过':'已提交主机，等待 RTL 读出'):'RTL 读出 ✓ · CRC32 '+m.crc32+' ✓ · '+ns(m.received_ps)+' ns','meta '+(!sent?'verified':'')));
+   box.append(msg)
+  }if(nearEnd||!s.totals.received)box.scrollTop=box.scrollHeight;
+ }
+}
+$('scenario').onclick=async()=>{
+ if(!state?.online)return;
+ if(await action('/api/receive',{side:'b',enabled:false})){
+  if(await action('/api/burst',{side:'a',count:40}))await action('/api/send',{side:'b',text:'B→A 反向验证：A→B 被堵住时，这条消息仍能到达。 / '+crypto.getRandomValues(new Uint32Array(1))[0].toString(16)})
+ }
+};
+$('challenge').onclick=()=>action('/api/challenge');$('step').onclick=()=>action('/api/step',{ns:200});$('run-mode').onchange=e=>action('/api/run-mode',{mode:e.target.value});$('reset').onclick=()=>action('/api/reset');$('stop').onclick=()=>action('/api/stop');$('restart').onclick=()=>action('/api/restart');
+async function poll(){if(polling||busy)return;polling=true;try{const r=await fetch('/api/state',{cache:'no-store'});if(!r.ok)throw Error('后端状态读取失败');render(await r.json())}catch(e){if(state)state.online=false;$('connection').classList.add('offline');$('connectionText').textContent='后端连接中断';notice('本机后端未响应，界面停止更新。'+e.message);setBusy(false)}finally{polling=false}}
+poll();pollRuntime();setInterval(poll,350);setInterval(pollRuntime,800);
+</script>
+</body>
+</html>

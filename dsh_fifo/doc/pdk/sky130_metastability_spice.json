@@ -1,0 +1,255 @@
+{
+  "mode": "spice",
+  "corner": "tt_025C_1v80",
+  "vdd": 1.8,
+  "temp_c": 25,
+  "cload_fF": 2.0,
+  "tstep_ps": 1.0,
+  "clk_ns": 4.0,
+  "baseline_c2q_ps": 168.13000000000034,
+  "meta_threshold_ps": 171.49260000000035,
+  "coarse_sweep": [
+    {
+      "dt_ps": 30,
+      "c2q_ps": null,
+      "state": "no_transition"
+    },
+    {
+      "dt_ps": 20,
+      "c2q_ps": null,
+      "state": "no_transition"
+    },
+    {
+      "dt_ps": 10,
+      "c2q_ps": null,
+      "state": "no_transition"
+    },
+    {
+      "dt_ps": 0,
+      "c2q_ps": null,
+      "state": "no_transition"
+    },
+    {
+      "dt_ps": -10,
+      "c2q_ps": null,
+      "state": "no_transition"
+    },
+    {
+      "dt_ps": -20,
+      "c2q_ps": null,
+      "state": "no_transition"
+    },
+    {
+      "dt_ps": -30,
+      "c2q_ps": 213.10000000000042,
+      "state": "ok"
+    },
+    {
+      "dt_ps": -40,
+      "c2q_ps": 177.69000000000045,
+      "state": "ok"
+    },
+    {
+      "dt_ps": -50,
+      "c2q_ps": 173.3100000000005,
+      "state": "ok"
+    },
+    {
+      "dt_ps": -60,
+      "c2q_ps": 171.12000000000054,
+      "state": "ok"
+    },
+    {
+      "dt_ps": -70,
+      "c2q_ps": 169.82000000000056,
+      "state": "ok"
+    },
+    {
+      "dt_ps": -80,
+      "c2q_ps": 169.02000000000032,
+      "state": "ok"
+    },
+    {
+      "dt_ps": -90,
+      "c2q_ps": 168.56999999999996,
+      "state": "ok"
+    },
+    {
+      "dt_ps": -100,
+      "c2q_ps": 168.3200000000005,
+      "state": "ok"
+    },
+    {
+      "dt_ps": -110,
+      "c2q_ps": 168.19000000000042,
+      "state": "ok"
+    },
+    {
+      "dt_ps": -120,
+      "c2q_ps": 168.13000000000034,
+      "state": "ok"
+    }
+  ],
+  "fine_sweep": [
+    {
+      "dt_ps": -10,
+      "c2q_ps": null,
+      "state": "no_transition"
+    },
+    {
+      "dt_ps": -12,
+      "c2q_ps": null,
+      "state": "no_transition"
+    },
+    {
+      "dt_ps": -14,
+      "c2q_ps": null,
+      "state": "no_transition"
+    },
+    {
+      "dt_ps": -16,
+      "c2q_ps": null,
+      "state": "no_transition"
+    },
+    {
+      "dt_ps": -18,
+      "c2q_ps": null,
+      "state": "no_transition"
+    },
+    {
+      "dt_ps": -20,
+      "c2q_ps": null,
+      "state": "no_transition"
+    },
+    {
+      "dt_ps": -22,
+      "c2q_ps": null,
+      "state": "no_transition"
+    },
+    {
+      "dt_ps": -24,
+      "c2q_ps": null,
+      "state": "no_transition"
+    },
+    {
+      "dt_ps": -26,
+      "c2q_ps": null,
+      "state": "no_transition"
+    },
+    {
+      "dt_ps": -28,
+      "c2q_ps": null,
+      "state": "no_transition"
+    },
+    {
+      "dt_ps": -30,
+      "c2q_ps": 213.10000000000042,
+      "state": "ok"
+    },
+    {
+      "dt_ps": -32,
+      "c2q_ps": 190.7899999999999,
+      "state": "ok"
+    },
+    {
+      "dt_ps": -34,
+      "c2q_ps": 184.79000000000056,
+      "state": "ok"
+    },
+    {
+      "dt_ps": -36,
+      "c2q_ps": 181.48000000000008,
+      "state": "ok"
+    },
+    {
+      "dt_ps": -38,
+      "c2q_ps": 179.2900000000001,
+      "state": "ok"
+    },
+    {
+      "dt_ps": -40,
+      "c2q_ps": 177.69000000000045,
+      "state": "ok"
+    },
+    {
+      "dt_ps": -42,
+      "c2q_ps": 176.46000000000043,
+      "state": "ok"
+    },
+    {
+      "dt_ps": -44,
+      "c2q_ps": 175.46000000000015,
+      "state": "ok"
+    },
+    {
+      "dt_ps": -46,
+      "c2q_ps": 174.64000000000013,
+      "state": "ok"
+    },
+    {
+      "dt_ps": -48,
+      "c2q_ps": 173.93000000000046,
+      "state": "ok"
+    },
+    {
+      "dt_ps": -50,
+      "c2q_ps": 173.3100000000005,
+      "state": "ok"
+    },
+    {
+      "dt_ps": -52,
+      "c2q_ps": 172.77000000000044,
+      "state": "ok"
+    },
+    {
+      "dt_ps": -54,
+      "c2q_ps": 172.29000000000045,
+      "state": "ok"
+    },
+    {
+      "dt_ps": -56,
+      "c2q_ps": 171.85999999999987,
+      "state": "ok"
+    },
+    {
+      "dt_ps": -58,
+      "c2q_ps": 171.47000000000045,
+      "state": "ok"
+    },
+    {
+      "dt_ps": -60,
+      "c2q_ps": 171.12000000000054,
+      "state": "ok"
+    },
+    {
+      "dt_ps": -62,
+      "c2q_ps": 170.81000000000014,
+      "state": "ok"
+    },
+    {
+      "dt_ps": -64,
+      "c2q_ps": 170.52000000000035,
+      "state": "ok"
+    },
+    {
+      "dt_ps": -66,
+      "c2q_ps": 170.27000000000007,
+      "state": "ok"
+    },
+    {
+      "dt_ps": -68,
+      "c2q_ps": 170.03000000000048,
+      "state": "ok"
+    },
+    {
+      "dt_ps": -70,
+      "c2q_ps": 169.82000000000056,
+      "state": "ok"
+    }
+  ],
+  "tau_ps": 53.75301453089651,
+  "Tw_ps": null,
+  "r2": 0.7144142749070796,
+  "note": "SPICE 相位扫描。dt<0 表示 data 早于 clk（正常采样），dt>0 表示 data 晚于 clk（正常不采样，非亚稳态）。仅 c2q 显著高于基线的点参与拟合。",
+  "intercept_ps": 381.77369472124957
+}

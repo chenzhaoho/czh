@@ -1,0 +1,56 @@
+{
+  "generated_utc": "2026-10-24T14:41:48.622039+00:00",
+  "pdk": "SKY130",
+  "cell": "sky130_fd_sc_hd__dfxtp_1",
+  "corner": "tt_025C_1v80",
+  "source": {
+    "standard_cell_repository": "https://github.com/google/skywater-pdk-libs-sky130_fd_sc_hd.git",
+    "standard_cell_revision": "ac7fb61f06e6470b94e8afdf7c25268f62fbd7b1",
+    "transistor_model_repository": "https://github.com/google/skywater-pdk-libs-sky130_fd_pr.git",
+    "transistor_model_revision": "f62031a1be9aefe902d6d54cddd6f59b57627436"
+  },
+  "units": {
+    "liberty_time": "ns",
+    "liberty_capacitance": "pF",
+    "cell_area": "um^2",
+    "cell_leakage_power": "uW"
+  },
+  "cell_area_um2": 20.0192,
+  "cell_leakage_power_uW": 0.008438635,
+  "input_capacitance_fF": {
+    "D": 1.678,
+    "CLK": 1.794
+  },
+  "setup_constraint_ps": {
+    "min_ps": -96.6654,
+    "max_ps": 620.6849
+  },
+  "hold_constraint_ps": {
+    "min_ps": -517.8079,
+    "max_ps": 140.9486
+  },
+  "clock_to_q_ps": {
+    "min_ps": 265.2426,
+    "max_ps": 1559.9231
+  },
+  "metastability": {
+    "tau_ps": 9.013578355466466,
+    "tw_ps": 451.9736383529389,
+    "fit_r2": 0.9961849522126074,
+    "source": "behavioral model (NOT a SPICE characterization)",
+    "artifact": "doc\\pdk\\sky130_metastability_model.json",
+    "status": "characterized via behavioral model (NOT a SPICE characterization)",
+    "mtbf": {
+      "Tclk4.0ns_2stage": 145.86,
+      "Tclk4.0ns_3stage": 338.59,
+      "Tclk10.0ns_2stage": 435.35,
+      "Tclk10.0ns_3stage": 917.17,
+      "Tclk1.0ns_2stage": 0.71,
+      "Tclk1.0ns_3stage": 48.89
+    }
+  },
+  "artifacts": {
+    "liberty_json": "pdk\\sky130_fd_sc_hd\\cells\\dfxtp\\sky130_fd_sc_hd__dfxtp_1__tt_025C_1v80.lib.json",
+    "cell_spice": "pdk\\sky130_fd_sc_hd\\cells\\dfxtp\\sky130_fd_sc_hd__dfxtp_1.spice"
+  }
+}

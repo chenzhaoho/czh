@@ -1,0 +1,50 @@
+{
+  "model": "cross-coupled inverter latch; tau = C/(gm-gds), verified by ODE integration",
+  "circuit_params": {
+    "gm_S": 0.0002,
+    "cap_F": 5e-15,
+    "gds_S": 2e-05,
+    "vdd_V": 1.8,
+    "vsat_V": 0.6
+  },
+  "tau_analytic_ps": 27.777777777777775,
+  "tau_fit_ps": 25.139959543458836,
+  "clock": {
+    "tclk_ns": 4.0,
+    "fdata_Hz": 100000000.0,
+    "tsetup_ns": 0.1,
+    "tskew_ns": 0.05
+  },
+  "tw_assumed_ps": [
+    20,
+    50,
+    100
+  ],
+  "mtbf": {
+    "2stage_Tw20ps": {
+      "t_r_ns": 3.85,
+      "log10_mtbf_years": 53.31094168646731
+    },
+    "3stage_Tw20ps": {
+      "t_r_ns": 7.8500000000000005,
+      "log10_mtbf_years": 122.41120911569648
+    },
+    "2stage_Tw50ps": {
+      "t_r_ns": 3.85,
+      "log10_mtbf_years": 52.91300167779527
+    },
+    "3stage_Tw50ps": {
+      "t_r_ns": 7.8500000000000005,
+      "log10_mtbf_years": 122.01326910702444
+    },
+    "2stage_Tw100ps": {
+      "t_r_ns": 3.85,
+      "log10_mtbf_years": 52.61197168213129
+    },
+    "3stage_Tw100ps": {
+      "t_r_ns": 7.8500000000000005,
+      "log10_mtbf_years": 121.71223911136046
+    }
+  },
+  "note": "tau 由电路参数 C/(gm-gds) 得到并用 ODE 积分交叉验证；T_w 是电路固有窗口宽度, 无法从 T_clk 反推, 故按文献典型值 20/50/100 ps 做敏感性。若要得到具体工艺的签核值, 需用 PDK 的 DFF 单元做 SPICE 边界扫掠。"
+}

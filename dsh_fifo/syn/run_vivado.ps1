@@ -2,6 +2,7 @@
 #   1) dual_2stage   : dual-channel top, SYNC_STAGES=2 (default)
 #   2) dual_3stage   : dual-channel top, SYNC_STAGES=3 (MTBF comparison)
 #   3) single_fifo_a : single-channel fifo_a (PPA baseline)
+#   4) dual_rm1_pipe : dual-channel top with synchronous reads
 #
 # Implementation runs on thin wrappers (syn/syn_wrap_*.v) because the raw
 # top level exposes ~1262 ports while xc7a35tcsg324 has only 210 user I/O.
@@ -53,7 +54,7 @@ foreach ($cfg in $configs) {
     $runExit = $LASTEXITCODE
     if ($runExit -ne 0 -or -not (Select-String -LiteralPath $log -SimpleMatch "SYN_DONE" -Quiet)) { $failed = $true }
     $dt = [math]::Round(((Get-Date) - $t0).TotalMinutes, 1)
-    Write-Host "elapsed: $dt min, exit=$LASTEXITCODE"
+    Write-Host "elapsed: $dt min, exit=$runExit"
 }
 
 Write-Host ""

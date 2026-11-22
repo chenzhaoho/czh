@@ -593,9 +593,10 @@ Slack:        -0.618 ns        ← 加了同步读之后仍不满足
 | 改进前（组合读，无流水） | 1989 | 352 | 0 | 1869 | **−0.445** | 33/313 | **不满足** |
 | 同步读，无流水 | 1604 | 0 | 2 | 1871 | −0.618 | 25/324 | 不满足 |
 | 组合读 + 流水 | 1982 | 352 | 0 | 1905 | −0.009 | 1/322 | 不满足 |
-| **同步读 + 流水（最终）** | **1599** | **0** | **2** | 1907 | **+0.035** | **0/333** | **全部满足** |
+| 同步读 + 流水（历史） | 1599 | 0 | 2 | 1907 | +0.035 | 0/333 | 全部满足 |
+| **同步读 + 流水（当前源码）** | **1619** | **0** | **2** | **1939** | **−0.058** | **9/340** | **不满足** |
 
-**改进收益**：
+**历史版本的改进收益**：
 
 | 指标 | 改进前 | 改进后 | 变化 |
 |---|---|---|---|
@@ -606,7 +607,7 @@ Slack:        -0.618 ns        ← 加了同步读之后仍不满足
 | `rd_clk_b` WNS | −0.445（33 违例） | **+0.035（0 违例）** | **250 MHz 时序收敛** |
 | 整体时序约束 | 不满足 | **全部满足** | — |
 
-改进后各时钟裕量（全部为正）：
+历史改进版本各时钟裕量：
 
 | 时钟 | 周期 | WNS | 失败端点 |
 |---|---|---|---|
@@ -615,6 +616,8 @@ Slack:        -0.618 ns        ← 加了同步读之后仍不满足
 | `wr_clk_b` | 14 ns | +6.316 | 0 |
 | `rd_clk_b` | 4 ns | **+0.035** | 0 |
 | `clk_mon` | 5 ns | +0.555 | 0 |
+
+在干净检出中用 `syn/run_vivado.ps1 -Config dual_rm1_pipe` 复验当前源码。流程完成综合和布线，`rd_clk_b` 在 4 ns 约束下 WNS 为 −0.058 ns、TNS 为 −0.419 ns，9 个端点未达到建立时间约束。占用为 1619 LUT、1939 FF 和 2 个 BRAM18。其他四个时钟域的建立时间裕量为正。
 
 **功能侧未受影响**：`READ_MODE` 默认 0，原有 9 个用例在 2 级/3 级两种配置下 **18/18 全部通过**；同步读模式另由 `tb/tb_std_read.sv` 专项验证（786 个检查点， 覆盖顺序读回、`rd_data_valid` 时序、空读、指针回卷、背压），全部通过。
 
@@ -720,7 +723,9 @@ B 端发送 → u_ba（clk_b 写，clk_a 读） → A 端收件
 
 单个标准异步 FIFO 提供一条固定方向的读写通道。本实验用两个 FIFO 分别承担正向和反向传输，并验证两路背压各自生效。吞吐受每路时钟和两端就绪状态影响，本实验测量的是传输功能和阻塞隔离。
 
-![实时终端堵塞实验](terminal_live/live_preview.png)
+![实时终端堵塞实验](terminal_live/blocked_fifo.png)
+
+图 9-1　A→B 缓冲占满时，B→A 已完成 24 次写入和读出。恢复 B 接收前，A→B 的读出数为 0。
 
 ### 9.3 复现与结果核对
 
@@ -828,7 +833,7 @@ ModelSim 10.3c 在中文 Windows 下把源文件按 GBK 解释且无法写含中
 | 类别 | 文件 |
 |---|---|
 | RTL（Verilog） | `rtl/common/gray_codec.v`、`sync_2ff.v`、`sync_gray_bus.v`、`rst_sync.v`；`rtl/fifo/async_fifo.v`、`fifo_a.v`、`fifo_b.v`；`rtl/top/monitor.v`、`dual_async_fifo_top.v` |
-| Testbench（SystemVerilog） | `tb/tb_top.sv`、`tb/env/tb_harness.sv`、`tb/env/tb_pkg.sv`、`tb/env/tb_coverage.sv` |
+| 仿真平台 | `tb/tb_top.sv`、`tb/env/tb_harness.sv`、`tb/env/tb_pkg.sv`、`tb/env/tb_coverage.sv` |
 | 实时终端 | `rtl/ext/dual_fifo_link.v`、`tb/tb_terminal_live.sv`、`scripts/run_terminal_live.cmd` 和 `doc/terminal_live/` |
 | 运行脚本 | `scripts/run_sim.cmd`（入口）、`scripts/run_sim.ps1`（实现）、`scripts/regression.cmd`（全量回归）、`scripts/lint.cmd` |
 | 仿真日志 | 复验生成 `sim/logs/run_<用例>_seed<种子>_<级数>stage.log` |

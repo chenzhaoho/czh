@@ -12,7 +12,7 @@ import os
 import re
 from pathlib import Path
 from docx import Document
-from docx.shared import Pt, Cm
+from docx.shared import Pt, Cm, RGBColor
 from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_BREAK
 from docx.oxml.ns import qn
 from docx.oxml import OxmlElement
@@ -32,6 +32,9 @@ normal.font.size = Pt(10.5)
 normal.element.rPr.rFonts.set(qn("w:eastAsia"), "宋体")
 normal.paragraph_format.line_spacing = 1.15
 normal.paragraph_format.space_after = Pt(3)
+
+for level in range(1, 5):
+    doc.styles[f"Heading {level}"].font.color.rgb = RGBColor(0, 0, 0)
 
 sec = doc.sections[0]
 # ??? A4 ???????? Letter(21.59cm ?), ???? 15.5cm ??
@@ -59,6 +62,7 @@ def add_page_break():
 
 def add_runs(par, text):
     """把 **粗体** 与 `代码` 标记转换成带格式的 run。"""
+    text = re.sub(r"\[([^\]]+)\]\(([^)]+)\)", r"\1（\2）", text)
     for part in re.split(r"(\*\*.+?\*\*)", text):
         if part.startswith("**") and part.endswith("**") and len(part) > 4:
             set_font(par.add_run(re.sub(r"`([^`]*)`", r"\1", part[2:-2])), bold=True)
@@ -156,11 +160,11 @@ for line in paras:
         continue
     txt = re.sub(r"[`*]", "", m.group(2)).strip()
     tp = doc.add_paragraph()
-    tp.paragraph_format.line_spacing = 1.12
+    tp.paragraph_format.line_spacing = 1.0
     tp.paragraph_format.left_indent = Cm(0.6 * (lvl - 2))
-    tp.paragraph_format.space_after = Pt(2)
+    tp.paragraph_format.space_after = Pt(1)
     set_font(tp.add_run(txt), cn="黑体" if lvl == 2 else "宋体",
-             size=11.5 if lvl == 2 else 10.5, bold=(lvl == 2))
+             size=11 if lvl == 2 else 10, bold=(lvl == 2))
 doc.add_paragraph()
 tp = doc.add_paragraph()
 fld = OxmlElement("w:fldSimple")

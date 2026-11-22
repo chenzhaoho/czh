@@ -47,7 +47,7 @@ $env:MODELSIM_BIN = 'C:\tools\modelsim_ase\win32aloem'
 
 - [课程设计报告](doc/课程设计报告_双异步FIFO系统.md) 包含基础设计、验证、PPA 分析和实时终端。安装 `python-docx==1.2.0` 后运行 `python scripts/build_docx.py` 可生成同目录的 Word 版本。
 - Verilator 可选。用 `VERILATOR_EXE` 指定可执行文件，运行 `python scripts/lint_rtl.py`。
-- 从当前 RTL 复算 PPA 需要 Vivado 2020.2 和 Artix-7 器件支持。设 `$env:VIVADO_EXE = 'C:\Xilinx\Vivado\2020.2\bin\vivado.bat'`，用 `powershell -NoProfile -ExecutionPolicy Bypass -File .\syn\run_vivado.ps1` 生成 `syn/vivado/` 报告。可以加 `-Config dual_rm1_pipe` 单独验证同步读配置。历史 PPA 数字对应原报告中的实现版本，当前版本以重新生成的数据为准。
+- 从当前 RTL 复算 PPA 需要 Vivado 2020.2 和 Artix-7 器件支持。设 `$env:VIVADO_EXE = 'C:\Xilinx\Vivado\2020.2\bin\vivado.bat'`，用 `powershell -NoProfile -ExecutionPolicy Bypass -File .\syn\run_vivado.ps1` 生成 `syn/vivado/` 报告。加 `-Config dual_rm1_pipe` 可单独运行同步读配置。当前源码复验中，该配置完成布线，`rd_clk_b` 在 4 ns 约束下 WNS 为 −0.058 ns，建时违例 9 个。
 - [SKY130 参数与 MTBF 分析](pdk/README.md) 说明可选工艺模型的固定版本和提取方法。RTL 仿真无需安装该工艺库。
 
 ## 工程目录

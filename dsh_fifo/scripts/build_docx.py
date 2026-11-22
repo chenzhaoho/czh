@@ -165,14 +165,14 @@ for line in paras:
     tp.paragraph_format.space_after = Pt(1)
     set_font(tp.add_run(txt), cn="黑体" if lvl == 2 else "宋体",
              size=11 if lvl == 2 else 10, bold=(lvl == 2))
-doc.add_paragraph()
 tp = doc.add_paragraph()
+tp.paragraph_format.space_after = Pt(0)
+tp.paragraph_format.line_spacing = 1.0
 fld = OxmlElement("w:fldSimple")
 fld.set(qn("w:instr"), r'TOC \o "1-3" \h \z \u')
 rr = OxmlElement("w:r"); tt = OxmlElement("w:t")
 tt.text = "（在 Word 中选中本节后按 F9 可生成带页码的目录）"
 rr.append(tt); fld.append(rr); tp._p.append(fld)
-add_page_break()
 
 # ---------------------------------------------------------------- 正文
 i = 0
@@ -276,7 +276,12 @@ while i < len(paras):
             gc = OxmlElement("w:gridCol"); gc.set(qn("w:w"), str(colw[c])); _g.append(gc)
         tb._tbl.insert(list(tb._tbl).index(_tp) + 1, _g)
         for ri, row in enumerate(rows):
-            cells = tb.add_row().cells
+            table_row = tb.add_row()
+            row_props = table_row._tr.get_or_add_trPr()
+            row_props.append(OxmlElement("w:cantSplit"))
+            if ri == 0:
+                row_props.append(OxmlElement("w:tblHeader"))
+            cells = table_row.cells
             for ci in range(ncol):
                 txt = row[ci] if ci < len(row) else ""
                 cells[ci].text = ""
@@ -296,6 +301,7 @@ while i < len(paras):
         if lvl == 1 and first_h1:
             first_h1 = False
             hp = doc.add_paragraph(); hp.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            hp.paragraph_format.page_break_before = True
             set_font(hp.add_run(txt), cn="黑体", size=17, bold=True)
             i += 1
             continue
@@ -305,6 +311,8 @@ while i < len(paras):
             i += 1
             continue
         hp = doc.add_heading(txt, level=min(max(lvl - 1, 1), 4))
+        if lvl == 2 and txt.startswith("附录 B"):
+            hp.paragraph_format.page_break_before = True
         for r in hp.runs:
             set_font(r, cn="黑体", size=HEAD_FONTS.get(lvl, 11), bold=True)
         i += 1

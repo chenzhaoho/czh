@@ -60,6 +60,8 @@ scripts\regression.cmd
 python scripts\mutation_test.py
 ```
 
+脚本在临时工程中修改 RTL 并编译变异，日常仿真可继续复用原工作库。
+
 **预期输出**：
 
 ```

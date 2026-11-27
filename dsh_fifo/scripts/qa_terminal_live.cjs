@@ -10,11 +10,15 @@ const base=process.env.TERMINAL_URL||'http://127.0.0.1:8765';
   const page = await browser.newPage({viewport:{width:1440,height:1100},deviceScaleFactor:1});
   const errors=[];
   page.on('pageerror', error=>errors.push(error.message));
-  const state=async()=>await (await page.request.get(base+'/api/state')).json();
+  const state=async(timeout=30000)=>await (await page.request.get(base+'/api/state',{timeout})).json();
   async function waitState(predicate, label) {
     // Native Wave redraws slow wall-clock execution; simulated timing is unchanged.
     const until=Date.now()+60000;
-    while(Date.now()<until){const s=await state();if(predicate(s)){console.log('PASS: '+label);return s}await page.waitForTimeout(250)}
+    while(Date.now()<until){
+      const s=await state(Math.max(1,until-Date.now()));
+      if(predicate(s)){console.log('PASS: '+label);return s}
+      await page.waitForTimeout(250);
+    }
     throw Error('Timeout: '+label+' '+JSON.stringify(await state()));
   }
   async function quiet(label) {

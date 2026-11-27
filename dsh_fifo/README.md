@@ -2,6 +2,8 @@
 
 硬件描述语言课程设计题目 27 的双异步 FIFO 工程。基础顶层包含两个 256×32 位 FIFO、独立的读写时钟和统一监控。唯一的应用拓展是 [双异步 FIFO 实时终端](doc/terminal_live/README.md)。网页上的文本经过 ModelSim 中的两个 RTL FIFO，原始握手和波形可下载核对。
 
+实时终端使用的双向链路已封装为可导入 Vivado IP Catalog 的参数化 IP。可在一台 PC 上生成 IP 包、回归 16 种参数和时钟组合，并在两个独立的 Artix-7 工程中复验。[通用 IP 核使用与验证](ip/README.md)
+
 ## 环境
 
 - Windows 10/11，Git，Python 3.10 或更新版本，现代浏览器。
@@ -56,6 +58,7 @@ $env:MODELSIM_BIN = 'C:\tools\modelsim_ase\win32aloem'
 |---|---|
 | `rtl/common/`、`rtl/fifo/`、`rtl/top/` | 基础 FIFO、CDC 同步、双通道顶层和监控 |
 | `rtl/ext/dual_fifo_link.v` | 实时终端使用的双向 RTL 数据链路 |
+| `ip/` | 双向异步 FIFO IP 的参数、封装、约束、消费工程示例和验收记录 |
 | `tb/` | 原题用例、同步读及实时终端 testbench |
 | `scripts/` | 编译、仿真、审计和启动脚本 |
 | `doc/terminal_live/` | 终端页面与操作说明 |

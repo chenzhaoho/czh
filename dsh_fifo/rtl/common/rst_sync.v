@@ -20,7 +20,7 @@ module rst_sync #(
     input  wire rst_n_async,
     output wire rst_n_sync
 );
-    reg [STAGES-1:0] sync_chain;
+    (* ASYNC_REG = "TRUE", SHREG_EXTRACT = "NO" *) reg [STAGES-1:0] sync_chain;
     integer i;
 
     always @(posedge clk or negedge rst_n_async) begin

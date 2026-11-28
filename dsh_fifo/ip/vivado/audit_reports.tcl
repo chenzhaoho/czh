@@ -61,7 +61,7 @@ proc audit_skew {folder aw {budget 10.0}} {
     return [format %.3f $worst]
 }
 
-proc audit_cdc {folder dw aw stages} {
+proc audit_cdc {folder dw aw stages read_mode} {
     set reported [dict create]
     set counted [dict create]
     set seen [dict create]
@@ -110,11 +110,17 @@ proc audit_cdc {folder dw aw stages} {
         dict set seen $endpoint 1
         dict incr counted $id
     }
-    if {[dict size $reported]!=3 || [dict size $counted]!=3} { error "Missing or unexpected CDC categories" }
+    set categories [expr {$read_mode == 0 ? 3 : 2}]
+    if {[dict size $reported]!=$categories || [dict size $counted]!=$categories} {
+        error "Missing or unexpected CDC categories: $reported"
+    }
     dict for {id n} $reported {
         if {![dict exists $counted $id] || [dict get $counted $id]!=$n} { error "Incomplete CDC evidence for $id" }
     }
-    if {[dict get $counted CDC-6]!=4 || [dict get $counted CDC-15]!=4*$dw || [dict get $counted CDC-9]<2} {
+    set expected_ram_crossings [expr {$read_mode == 0 ? 4*$dw : 0}]
+    set ram_crossings 0
+    if {[dict exists $counted CDC-15]} { set ram_crossings [dict get $counted CDC-15] }
+    if {[dict get $counted CDC-6]!=4 || $ram_crossings!=$expected_ram_crossings || [dict get $counted CDC-9]<2} {
         error "Incomplete crossings: $counted"
     }
     return $counted

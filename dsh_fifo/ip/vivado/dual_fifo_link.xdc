@@ -30,9 +30,12 @@ set_bus_skew $duplex_budget -from $ab_rd_q -to $ab_rd_d
 set_bus_skew $duplex_budget -from $ba_wr_q -to $ba_wr_d
 set_bus_skew $duplex_budget -from $ba_rd_q -to $ba_rd_d
 
-# Data is held in dual-port LUTRAM until the synchronized pointer allows a read.
-# Constrain only RAM launches into the opposite port's clock, including its user.
-set ab_mem [get_cells -hier -filter {NAME =~ *u_ab/mem_reg* && (REF_NAME =~ RAMD* || REF_NAME =~ RAMS*) && IS_PRIMITIVE}]
-set ba_mem [get_cells -hier -filter {NAME =~ *u_ba/mem_reg* && (REF_NAME =~ RAMD* || REF_NAME =~ RAMS*) && IS_PRIMITIVE}]
-set_max_delay -datapath_only $duplex_budget -from [get_pins -of_objects $ab_mem -filter {REF_PIN_NAME == CLK}] -to $duplex_clkb
-set_max_delay -datapath_only $duplex_budget -from [get_pins -of_objects $ba_mem -filter {REF_PIN_NAME == CLK}] -to $duplex_clka
+# Limit paths launched by the write clock through each RAM to the reader.
+# The synchronous BRAM output is launched by its read clock and stays timed
+# as a local path. In FWFT mode this exception bounds the LUTRAM data crossing.
+set ab_mem [get_cells -hier -filter {NAME =~ *u_ab/mem_reg* && (REF_NAME =~ RAMD* || REF_NAME =~ RAMS* || REF_NAME =~ RAMB*) && IS_PRIMITIVE}]
+set ba_mem [get_cells -hier -filter {NAME =~ *u_ba/mem_reg* && (REF_NAME =~ RAMD* || REF_NAME =~ RAMS* || REF_NAME =~ RAMB*) && IS_PRIMITIVE}]
+set ab_data [get_pins -of_objects $ab_mem -filter {DIRECTION == OUT}]
+set ba_data [get_pins -of_objects $ba_mem -filter {DIRECTION == OUT}]
+set_max_delay -datapath_only $duplex_budget -from $duplex_clka -through $ab_data -to $duplex_clkb
+set_max_delay -datapath_only $duplex_budget -from $duplex_clkb -through $ba_data -to $duplex_clka

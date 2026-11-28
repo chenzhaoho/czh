@@ -1,7 +1,7 @@
 `timescale 1ns/1ps
 // Black-box IP test. The scoreboard only observes ready/valid interface pins.
 module tb_dual_fifo_ip #(
-    parameter integer DW=32, AW=8, SYNC_STAGES=2, SWAP_CLOCKS=0, CLOCK_CASE=0
+    parameter integer DW=32, AW=8, SYNC_STAGES=2, SWAP_CLOCKS=0, CLOCK_CASE=0, READ_MODE=0
 );
     localparam integer DEPTH=1<<AW, MAX_WORDS=8*DEPTH+256;
     // 0: reference clocks, 1: coincident edges, 2: asymmetric 50:1 clock ratio.
@@ -30,7 +30,7 @@ module tb_dual_fifo_ip #(
         forever #(HALF_B) if (clk[1] || clock_run[1]) clk[1]=~clk[1];
     end
 
-    dual_fifo_link #(.DW(DW), .AW(AW), .SYNC_STAGES(SYNC_STAGES)) dut (
+    dual_fifo_link #(.DW(DW), .AW(AW), .SYNC_STAGES(SYNC_STAGES), .READ_MODE(READ_MODE)) dut (
         .clk_a(clk[0]), .clk_b(clk[1]), .rst_n_async(rst_n),
         .a_tx_valid(tx_valid[0]), .a_tx_ready(tx_ready[0]), .a_tx_data(tx_data[0]),
         .b_tx_valid(tx_valid[1]), .b_tx_ready(tx_ready[1]), .b_tx_data(tx_data[1]),
@@ -133,9 +133,44 @@ module tb_dual_fifo_ip #(
             goal[peer]=writes[peer]+DEPTH/2;
             wait (reads[peer]==goal[peer]);
             if (reads[sender]!=old_reads || !full[sender]) $fatal(1,"blocked direction moved");
+            // Every one of the words already queued must transfer on successive
+            // reader edges, including the first word after a long stall.
+            wait (rx_used[peer]==DEPTH);
             mode[peer]=1;
+            wait (rx_ready[peer]);
+            repeat (DEPTH) begin
+                @(posedge clk[peer]);
+                if (rx_valid[peer] !== 1'b1 || rx_ready[peer] !== 1'b1)
+                    $fatal(1,"burst bubble from endpoint %0d",sender);
+            end
+            wait (reads[sender]==goal[sender]);
+            $display("BURST_PASS sender=%0d words=%0d interval=1",sender,DEPTH);
+            #(SETTLE_NS);
+        end
+    endtask
+
+    task automatic test_last_word(input integer receiver);
+        integer sender;
+        begin
+            sender=1-receiver;
+            mode[receiver]=0;
+            goal[sender]=writes[sender]+1;
+            wait (rx_used[receiver]==1);
+            @(negedge clk[receiver]);
+            if (rx_valid[receiver] !== (READ_MODE==0))
+                $fatal(1,"unexpected first-word latency at endpoint %0d",receiver);
+            @(negedge clk[receiver]);
+            if (rx_valid[receiver] !== 1'b1)
+                $fatal(1,"missing last word at endpoint %0d",receiver);
+            repeat (8) @(negedge clk[receiver]);
+            if (rx_used[receiver] != 1 || rx_valid[receiver] !== 1'b1)
+                $fatal(1,"prefetched last word disappeared at endpoint %0d",receiver);
+            mode[receiver]=1;
             wait (reads[sender]==goal[sender]);
             #(SETTLE_NS);
+            if (rx_used[receiver] != 0 || rx_valid[receiver] !== 1'b0)
+                $fatal(1,"last word was not retired at endpoint %0d",receiver);
+            $display("LAST_WORD_PASS receiver=%0d extra_read_clocks=%0d",receiver,READ_MODE);
         end
     endtask
 
@@ -224,11 +259,14 @@ module tb_dual_fifo_ip #(
         if (rx_valid!==0 || writes[0]!=reads[0] || writes[1]!=reads[1])
             $fatal(1,"post-reset queue did not drain");
         $display("POST_RESET AB_WR=%0d AB_RD=%0d BA_WR=%0d BA_RD=%0d",writes[0],reads[0],writes[1],reads[1]);
+        test_last_word(0);
+        test_last_word(1);
         if (CLOCK_CASE!=0) begin
             test_stopped_clock(0);
             test_stopped_clock(1);
         end
-        $display("IP_PASS DW=%0d AW=%0d STAGES=%0d SWAP=%0d SEED=%0d",DW,AW,SYNC_STAGES,SWAP_CLOCKS,seed);
+        $display("IP_PASS DW=%0d AW=%0d STAGES=%0d SWAP=%0d SEED=%0d READ_MODE=%0d",
+                 DW,AW,SYNC_STAGES,SWAP_CLOCKS,seed,READ_MODE);
         $finish;
     end
 

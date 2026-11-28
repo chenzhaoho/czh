@@ -22,7 +22,7 @@ def simulation_sources(component):
     model = ET.parse(component).getroot()
     identity = ":".join(model.findtext("ip:" + tag, "", ns)
                         for tag in ("vendor", "library", "name", "version"))
-    if identity != "chenzhaoho:user:dual_fifo_link:1.0":
+    if identity != "chenzhaoho:user:dual_fifo_link:1.1":
         raise ValueError(f"Unexpected IP identity {identity!r}")
     for group in model.findall("ip:fileSets/ip:fileSet", ns):
         if group.findtext("ip:name", "", ns) == "xilinx_anylanguagebehavioralsimulation_view_fileset":
@@ -52,6 +52,8 @@ def main():
     parser.add_argument("--seed", type=int, default=27)
     parser.add_argument("--component", type=Path,
                         help="Compile the simulation file set in a packaged component.xml")
+    parser.add_argument("--read-mode", type=int, choices=(0, 1),
+                        help="Limit the matrix to FWFT (0) or synchronous BRAM (1)")
     parser.add_argument("--stress", action="store_true",
                         help="Test coincident edges and both 50:1 clock orders, including stop and reset")
     args = parser.parse_args()
@@ -71,17 +73,21 @@ def main():
          ROOT / "tb/tb_dual_fifo_ip.sv"], session, session / "compile.log", 120)
     results = []
     clocks = ((1, 0), (2, 0), (2, 1)) if args.stress else ((0, 0), (0, 1))
-    for dw, aw, stages, (clock_case, swap) in itertools.product((16, 32), (6, 8), (2, 3), clocks):
-        marker = f"IP_PASS DW={dw} AW={aw} STAGES={stages} SWAP={swap} SEED={args.seed}"
+    modes = (0, 1) if args.read_mode is None else (args.read_mode,)
+    for mode, dw, aw, stages, (clock_case, swap) in itertools.product(modes, (16, 32), (6, 8), (2, 3), clocks):
+        marker = f"IP_PASS DW={dw} AW={aw} STAGES={stages} SWAP={swap} SEED={args.seed} READ_MODE={mode}"
         required = {marker}
+        for port in (0, 1):
+            required.add(f"BURST_PASS sender={port} words={1 << aw} interval=1")
+            required.add(f"LAST_WORD_PASS receiver={port} extra_read_clocks={mode}")
         if clock_case:
             for stopped in (0, 1):
                 required.add(f"CLOCK_PAUSE_PASS stopped={stopped} capacity={1 << aw} reverse={1 << (aw - 1)}")
         suffix = f"_clock{clock_case}" if clock_case else ""
-        log = session / f"dw{dw}_aw{aw}_s{stages}_swap{swap}{suffix}.log"
+        log = session / f"rm{mode}_dw{dw}_aw{aw}_s{stages}_swap{swap}{suffix}.log"
         command = [simulator / "vsim.exe", "-c", "-quiet", "-onfinish", "stop",
                    f"-gDW={dw}", f"-gAW={aw}", f"-gSYNC_STAGES={stages}",
-                   f"-gSWAP_CLOCKS={swap}", f"-gCLOCK_CASE={clock_case}",
+                   f"-gSWAP_CLOCKS={swap}", f"-gCLOCK_CASE={clock_case}", f"-gREAD_MODE={mode}",
                    "work.tb_dual_fifo_ip", f"+SEED={args.seed}",
                    "-do", "onerror {quit -code 1}; run -all; quit -f"]
         try:
@@ -91,8 +97,8 @@ def main():
         except (subprocess.SubprocessError, OSError) as error:
             print(error, flush=True)
             passed = False
-        results.append(dict(dw=dw, aw=aw, stages=stages, swap=swap, clock_case=clock_case, seed=args.seed,
-                            passed=passed, log=log.name))
+        results.append(dict(read_mode=mode, dw=dw, aw=aw, stages=stages, swap=swap,
+                            clock_case=clock_case, seed=args.seed, passed=passed, log=log.name))
         print(f"{'PASS' if passed else 'FAIL'} {log.name}", flush=True)
     (session / "matrix.json").write_text(json.dumps(results, indent=2), encoding="utf-8")
     total = sum(r["passed"] for r in results)

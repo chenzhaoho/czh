@@ -18,10 +18,10 @@
 //   接口语义 (与项目计划书 3.2 一致):
 //     写侧: wr_ready = !full；仅 wr_valid && wr_ready 时写入并推进写指针；
 //           wr_valid && full 记一次溢出写尝试。
-//     读侧: rd_valid = !empty；仅 rd_en && rd_ready && rd_valid 时弹出数据并
+//     读侧: 仅 rd_en && rd_ready && rd_valid 时弹出数据并
 //           推进读指针；rd_en && empty 记一次下溢读尝试；
 //           rd_valid && !rd_ready 记一个背压周期。
-//     无成功弹出时 rd_data 保持；复位释放且首次写入前 rd_data_valid = 0。
+//     模式 0/2 中，rd_valid 有效而未成交时队首保持；模式 1 以 rd_data_valid 指示响应。
 //
 // Preset / 假设:
 //     1) 深度 DEPTH = 2**AW；AW=8 -> 9 bit 指针 -> 深度 256，与题目一致。
@@ -41,7 +41,7 @@ module async_fifo #(
     parameter integer ALMOST_EMPTY_TH = 32,     // 默认 1/8 深度
     parameter integer DEADBAND        = 2,      // 阈值迟滞(去抖动)
     parameter integer CNT_W           = 32,     // 事件计数器位宽(饱和计数)
-    parameter integer READ_MODE       = 0       // 0=FWFT(组合读) 1=Standard(同步读, 可用 BRAM)
+    parameter integer READ_MODE       = 0       // 0=组合直通, 1=同步请求, 2=BRAM ready/valid
 ) (
     //----------------------------------------------------------- 全局异步复位
     input  wire              rst_n_async,
@@ -63,9 +63,9 @@ module async_fifo #(
     input  wire              rd_clk,
     input  wire              rd_en,
     input  wire              rd_ready,
-    output wire [DW-1:0]     rd_data,               // READ_MODE=0: mem[rd_addr] 组合读; =1: 同步读输出
+    output wire [DW-1:0]     rd_data,               // FWFT 或同步读数据
     output wire              rd_data_valid,         // 与 rd_data 对应的有效指示
-    output wire              rd_valid,              // = !empty
+    output wire              rd_valid,              // 模式 2: 队首数据已就绪; 其他模式: FIFO 非空
     output wire              rd_empty,
     output wire              rd_almost_empty,
     output wire [CNT_W-1:0]  rd_event_cnt,          // 本地: 成功读出次数
@@ -120,6 +120,8 @@ module async_fifo #(
     reg [DW-1:0] mem [0:DEPTH-1];
     reg [AW-1:0] wr_addr;
     reg [AW-1:0] rd_addr;
+    reg [AW:0] wr_occupancy_r;      // 写域: 当前 FIFO 内字数 (0..DEPTH)
+    reg [AW:0] rd_occupancy_r;      // 读域: 当前 FIFO 内字数 (0..DEPTH)
 
 
     //=====================================================================
@@ -159,7 +161,7 @@ module async_fifo #(
     assign bp_cyc  = rd_valid & (~rd_ready);
 
     //=====================================================================
-    // 存储阵列读出: 两种实现由 READ_MODE 选择
+    // 存储阵列读出由 READ_MODE 选择
     //   READ_MODE=0 (FWFT, 默认): 组合读出, rd_data 当拍即有效, 接口最直观,
     //                             但综合只能得到分布式 RAM(LUTRAM), 且在
     //                             rd_clk 极快时组合路径成为时序瓶颈。
@@ -167,6 +169,8 @@ module async_fifo #(
     //                             代价是 rd_data 比 rd_pop 晚一拍, 由
     //                             rd_data_valid 指示何时有效。
     //                             调用方须在 rd_data_valid=1 时采样 rd_data。
+    //   READ_MODE=2 (BRAM)       : 同步预取，端口仍按 ready/valid 交付。
+    //                             本地看到首字后多一拍读时钟，连续读取可每拍成交。
     //=====================================================================
     generate
         if (READ_MODE == 0) begin : g_read_fwft
@@ -177,6 +181,31 @@ module async_fifo #(
             end
             assign rd_data       = rd_valid ? mem[rd_addr] : last_popped;
             assign rd_data_valid = rd_valid;
+            assign rd_valid      = rst_n_rd & ~rd_empty;
+        end else if (READ_MODE == 2) begin : g_read_bram
+            reg [DW-1:0] head_data;
+            reg          head_valid;
+
+            // The enabled RAM output holds the head during a stall. On a
+            // transfer, read the next address if one more word is visible.
+            // Only the external transfer advances rd_bin and rd_gray.
+            wire fetch = rst_n_rd && ((!head_valid && !rd_empty) ||
+                                      (rd_pop && (|rd_occupancy_r[AW:1])));
+            wire [AW-1:0] fetch_addr = rd_pop ? rd_bin_next[AW-1:0] : rd_addr;
+
+            always @(posedge rd_clk) begin
+                if (fetch) head_data <= mem[fetch_addr];
+            end
+
+            // Reset validity separately so the data read infers block RAM.
+            always @(posedge rd_clk or negedge rst_n_rd) begin
+                if (!rst_n_rd) head_valid <= 1'b0;
+                else if (fetch || rd_pop) head_valid <= fetch;
+            end
+
+            assign rd_data       = head_data;
+            assign rd_data_valid = head_valid;
+            assign rd_valid      = head_valid;
         end else begin : g_read_std
             reg [DW-1:0] rd_data_r;
             reg          rd_data_valid_r;
@@ -192,6 +221,7 @@ module async_fifo #(
             end
             assign rd_data       = rd_data_r;
             assign rd_data_valid = rd_data_valid_r;
+            assign rd_valid      = rst_n_rd & ~rd_empty;
         end
     endgenerate
 
@@ -272,8 +302,6 @@ module async_fifo #(
     //   写满/读空在对方域看来允许有同步器延迟(异步 FIFO 的固有特性)。
     //   格雷码指针仍然保留用于跨域传递(占用量估计、监控域状态量)。
     //=====================================================================
-    reg  [AW:0] wr_occupancy_r;      // 写域: 当前 FIFO 内字数 (0..DEPTH)
-    reg  [AW:0] rd_occupancy_r;      // 读域: 当前 FIFO 内字数 (0..DEPTH)
     reg  [AW:0] rd_ptr_seen;         // 写域: 上一次同步到的读指针
     reg  [AW:0] wr_ptr_seen;         // 读域: 上一次同步到的写指针
 
@@ -330,7 +358,6 @@ module async_fifo #(
     assign rd_empty = (rd_occupancy_r == {(AW+1){1'b0}});
 
     assign wr_ready   = rst_n_wr & ~wr_full;
-    assign rd_valid   = rst_n_rd & ~rd_empty;
     wire [AW:0] rd_gray_seen = (rd_ptr_seen >> 1) ^ rd_ptr_seen;
     wire gray_full = (wr_gray == {~rd_gray_seen[AW:AW-1], rd_gray_seen[AW-2:0]});
     assign full_check = (wr_full == gray_full);

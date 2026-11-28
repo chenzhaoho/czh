@@ -3,11 +3,11 @@ if {$argc != 1} { error "Expected an output IP repository directory" }
 set here [file dirname [file normalize [info script]]]
 set root [file dirname [file dirname $here]]
 set repo [file normalize [lindex $argv 0]]
-set dest [file join $repo dual_fifo_link_1_0]
+set dest [file join $repo dual_fifo_link_1_1]
 file mkdir $repo
 set scratch [file join [file dirname $repo] .pack-[pid]-[clock clicks]]
 file mkdir $scratch
-set stage [file join $scratch dual_fifo_link_1_0]
+set stage [file join $scratch dual_fifo_link_1_1]
 set token ".generated-dual-fifo-ip"
 
 proc add_interface_parameter {iface name value} {
@@ -35,12 +35,12 @@ proc make_package {root here scratch stage} {
     ipx::package_project -root_dir $stage -vendor chenzhaoho -library user -taxonomy /UserIP -import_files -set_current true
     set core [ipx::current_core]
     set_property name dual_fifo_link $core
-    set_property version 1.0 $core
-    set_property core_revision 2 $core
+    set_property version 1.1 $core
+    set_property core_revision 1 $core
     set_property display_name {Duplex asynchronous FIFO} $core
-    set_property description {Two independent ready/valid streams between unrelated clock domains.} $core
+    set_property description {Two independent ready/valid streams with FWFT LUTRAM or synchronous block RAM.} $core
     set_property supported_families {artix7 Production} $core
-    foreach {name choices} {AW {6 8} DW {16 32} SYNC_STAGES {2 3}} {
+    foreach {name choices} {AW {6 8} DW {16 32} SYNC_STAGES {2 3} READ_MODE {0 1}} {
         set item [ipx::get_user_parameters $name -of_objects $core]
         set_property value_validation_type list $item
         set_property value_validation_list $choices $item
@@ -81,4 +81,4 @@ if {[catch {
     exit 1
 }
 file delete -force $scratch
-puts "IP_PACKAGE_PASS chenzhaoho:user:dual_fifo_link:1.0 $dest"
+puts "IP_PACKAGE_PASS chenzhaoho:user:dual_fifo_link:1.1 $dest"

@@ -2,6 +2,8 @@
 
 一个 IP 在两个独立时钟域之间提供两条可同时使用的字流。A 的发送口写入 `u_ab`，B 的接收口读出。B 的发送口写入 `u_ba`，A 的接收口读出。每条队列各有存储、读写指针和满空判定。当 B 暂停接收并使 A→B 满时，B 仍能通过另一条队列给 A 发回数据。实时终端和 IP 包共用 [dual_fifo_link](../rtl/ext/dual_fifo_link.v)。
 
+当前包为 1.0 修订 2。Vivado 将同一端口上的多个时钟模式都纳入跨域约束。已导入旧包的工程可以更新 IP Repository 路径，在 **Report IP Status** 中升级该核并重新生成输出产品。
+
 ## 在一台 PC 上复现
 
 使用 Windows、Python 3.10+、ModelSim 和带 Artix-7 器件支持的 Vivado 2020.2。本次采用 ModelSim-Altera 10.3c。PowerShell 在短 ASCII 路径下工作，例如 `C:\work`。把工具路径改为本机安装位置。
@@ -23,6 +25,12 @@ $vivado = 'C:\Xilinx\Vivado\2020.2\bin\vivado.bat'
 上述四步分别验证仓库里的 RTL、生成 IP 仓库、用包内文件重新编译仿真，以及在两个空工程中从 IP Catalog 实例化并布线。每条命令退出码应为 0。对应的结束标志依次是 `16/16 PASS`、`IP_PACKAGE_PASS`、`16/16 PASS`、`IP_CONSUMER_PASS`。ModelSim 矩阵每次创建独立工作库，每个消费工程保留自己的报告。安装路径排查可先运行 `& $vivado -version`。
 
 若 64 位 Windows 工具终端缺失 `PROCESSOR_ARCHITECTURE` 且 Vivado 2020.2 启动器直接退出，可在当前 x64 PowerShell 执行 `$env:PROCESSOR_ARCHITECTURE = 'AMD64'` 后重试。单独复查实现时，可在最后一条命令末尾添加 `default` 或 `compact`。
+
+补充边界仿真用以下命令。在 8 组参数下分别测试 10 ns 同相、2 ns 对 100 ns 和 100 ns 对 2 ns。每次轮流暂停 A、B 时钟，检查严格容量、反向已入队数据的读出、停钟恢复和停钟时的共同复位。结束标志为 `24/24 PASS`。
+
+```powershell
+.\scripts\run_ip_verify.cmd --component build/ip_repo/dual_fifo_link_1_0/component.xml --stress --seed 111
+```
 
 ## 导入另一个 Vivado 工程
 
@@ -59,9 +67,10 @@ $vivado = 'C:\Xilinx\Vivado\2020.2\bin\vivado.bat'
 ## 实现和 CDC 验收
 
 - [功能测试台](../tb/tb_dual_fifo_ip.sv) 只观察外部端口，用两套独立参考队列比对顺序和数据。8 组参数均以 A 快 / B 快各跑一次，时钟为 10 和 14 ns，B 时钟错相 1.701 ns。测试先轮流写满单向队列，并在堵塞期间验证反向成交，然后测试随机并发、指针回绕、双向满时复位和复位后新数据。
-- [实例约束](vivado/dual_fifo_link.xdc) 在实现时读取两个实际时钟的周期，以较短周期给四组 Gray 指针到首级同步寄存器设置 datapath-only 最大延迟和总线偏斜预算。同步器级间继续按目标时钟计时。分布式 RAM 的写时钟到对侧域数据捕获另有限时。集成时应检查已有全局异步时钟分组或 false path 是否覆盖这些限时。OOC 综合有单独的 [默认时钟文件](vivado/dual_fifo_ooc.xdc)。
+- [实例约束](vivado/dual_fifo_link.xdc) 在实现时从 Gray 源寄存器的时钟引脚取得实际传播到两端的时钟集合。以所有候选周期中的最短值约束四组 Gray 指针到首级同步寄存器的最大延迟和总线偏斜，同时约束分布式 RAM 到对侧所有接收时钟的数据捕获。同步器级间继续按目标时钟计时。集成时应检查已有全局异步时钟分组或 false path 是否覆盖这些限时。OOC 综合有单独的 [默认时钟文件](vivado/dual_fifo_ooc.xdc)。
 - 独立参考工程使用 `xc7a35tcsg324-1`，时钟周期 10 ns 和 14 ns。两个方向都发送变化的数据、周期性暂停接收，并把捕获数据的奇偶校验送往输出。每路状态输出配一根转发时钟，在数据周期中部采样。参考工程的 FPGA 原语只用于这些输出时钟。默认组使用独立综合检查点，精简组使用全局综合。
 - [实现验收脚本](vivado/verify_dual_fifo_ip.tcl) 检查每位 Gray 指针都命中有效的最大延迟和指定级数的同步寄存器。它还核对四组 skew、逐条分类 CDC、检查时钟与内部未约束端点、布线完成度以及建立和保持裕量。[本版验收记录](validation.md) 给出实测值、报告索引及终端复核方法。
+- 精简组布线完成后追加时钟模式复验。A 端登记 9 ns 和 19 ns 两种互斥时钟，B 端为 14 ns。脚本清除原时序例外后重新施加包内约束，核对 Gray 位、四组偏斜和两种 A 时钟模式下的 RAM 限时，最后输出 `IP_CLOCK_MODES_PASS`。报告保存在精简组的 `clock_modes/` 子目录。
 
 ## 运行实时终端
 

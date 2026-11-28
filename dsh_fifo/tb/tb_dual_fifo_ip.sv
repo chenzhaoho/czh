@@ -1,10 +1,19 @@
 `timescale 1ns/1ps
 // Black-box IP test. The scoreboard only observes ready/valid interface pins.
 module tb_dual_fifo_ip #(
-    parameter integer DW=32, AW=8, SYNC_STAGES=2, SWAP_CLOCKS=0
+    parameter integer DW=32, AW=8, SYNC_STAGES=2, SWAP_CLOCKS=0, CLOCK_CASE=0
 );
     localparam integer DEPTH=1<<AW, MAX_WORDS=8*DEPTH+256;
+    // 0: reference clocks, 1: coincident edges, 2: asymmetric 50:1 clock ratio.
+    localparam integer SLOW_HALF=CLOCK_CASE==2 ? 50 : (CLOCK_CASE==1 ? 5 : 7);
+    localparam integer FAST_HALF=CLOCK_CASE==2 ? 1 : 5;
+    localparam integer HALF_A=SWAP_CLOCKS ? SLOW_HALF : FAST_HALF;
+    localparam integer HALF_B=SWAP_CLOCKS ? FAST_HALF : SLOW_HALF;
+    localparam integer PHASE_B_PS=CLOCK_CASE==1 ? 0 : 1701;
+    localparam integer SETTLE_NS=CLOCK_CASE==0 ? 140 : 2*SLOW_HALF*(SYNC_STAGES+8);
+    localparam integer RESET_NS=CLOCK_CASE==0 ? 100 : SETTLE_NS;
     reg [1:0] clk=0, tx_valid=0, rx_ready=0;
+    reg [1:0] clock_run=2'b11;
     reg rst_n=0, random_offers=0;
     reg [DW-1:0] tx_data[0:1];
     wire [DW-1:0] rx_data[0:1];
@@ -15,10 +24,10 @@ module tb_dual_fifo_ip #(
     integer seed, epoch=0;
     reg [31:0] salt;
 
-    always #(SWAP_CLOCKS ? 7 : 5) clk[0]=~clk[0];
+    always #(HALF_A) if (clk[0] || clock_run[0]) clk[0]=~clk[0];
     initial begin
-        #1.701;
-        forever #(SWAP_CLOCKS ? 5 : 7) clk[1]=~clk[1];
+        if (PHASE_B_PS!=0) #(PHASE_B_PS/1000.0);
+        forever #(HALF_B) if (clk[1] || clock_run[1]) clk[1]=~clk[1];
     end
 
     dual_fifo_link #(.DW(DW), .AW(AW), .SYNC_STAGES(SYNC_STAGES)) dut (
@@ -37,7 +46,7 @@ module tb_dual_fifo_ip #(
         reg [DW-1:0] prior_rx, prior_tx;
         reg [31:0] noise;
 
-        always @(negedge clk[i]) begin
+        always @(negedge clk[i] or negedge rst_n) begin
             if (!rst_n) begin
                 tx_valid[i]=0;
                 rx_ready[i]=0;
@@ -54,7 +63,7 @@ module tb_dual_fifo_ip #(
             end
         end
 
-        always @(posedge clk[i]) begin
+        always @(posedge clk[i] or negedge rst_n) begin
             if (!rst_n) begin
                 writes[i]=0;
                 reads[PEER]=0;
@@ -67,6 +76,8 @@ module tb_dual_fifo_ip #(
                     $fatal(1,"unknown handshake or status at endpoint %0d",i);
                 if (tx_used[i]>DEPTH || rx_used[i]>DEPTH || (full[i] != (tx_used[i]==DEPTH)))
                     $fatal(1,"bad local occupancy at endpoint %0d",i);
+                if (tx_used[i]<writes[i]-reads[i] || rx_used[i]>writes[PEER]-reads[PEER])
+                    $fatal(1,"local occupancy was optimistic at endpoint %0d",i);
                 if (held_rx && (!rx_valid[i] || rx_data[i] !== prior_rx))
                     $fatal(1,"receive data changed while stalled at endpoint %0d",i);
                 if (held_tx && (!tx_valid[i] || tx_data[i] !== prior_tx))
@@ -98,10 +109,10 @@ module tb_dual_fifo_ip #(
             rst_n=0;
             goal[0]=0; goal[1]=0;
             mode[0]=1; mode[1]=1;
-            #100;
+            #(RESET_NS);
             if ({tx_ready,rx_valid} !== 4'b0) $fatal(1,"active ports during reset");
             rst_n=1;
-            #140;
+            #(SETTLE_NS);
             if (tx_ready !== 2'b11 || rx_valid !== 2'b00 ||
                 (tx_used[0]|tx_used[1]|rx_used[0]|rx_used[1]) !== 0)
                 $fatal(1,"link did not return to empty");
@@ -124,14 +135,73 @@ module tb_dual_fifo_ip #(
             if (reads[sender]!=old_reads || !full[sender]) $fatal(1,"blocked direction moved");
             mode[peer]=1;
             wait (reads[sender]==goal[sender]);
-            #140;
+            #(SETTLE_NS);
+        end
+    endtask
+
+    task automatic test_stopped_clock(input integer stopped);
+        integer running, base_writes, base_reads, reverse_goal;
+        begin
+            running=1-stopped;
+            random_offers=0;
+            mode[running]=0;
+            goal[stopped]=writes[stopped]+DEPTH/2;
+            wait (writes[stopped]==goal[stopped] && !tx_valid[stopped]);
+            reverse_goal=goal[stopped];
+
+            #0.037;
+            clock_run[stopped]=0;
+            wait (clk[stopped]==0);
+            base_writes=writes[running];
+            base_reads=reads[running];
+            goal[running]=base_writes+DEPTH+3;
+            mode[running]=1;
+            wait (full[running] && tx_valid[running] && reads[stopped]==reverse_goal);
+            #(SETTLE_NS);
+            if (writes[running]-base_writes!=DEPTH || reads[running]!=base_reads ||
+                tx_ready[running]!==1'b0 || tx_used[running]!==DEPTH)
+                $fatal(1,"stopped receiver accepted more than FIFO capacity");
+            clock_run[stopped]=1;
+            wait (reads[running]==goal[running]);
+            #(SETTLE_NS);
+            if ((tx_used[0]|tx_used[1]|rx_used[0]|rx_used[1])!==0 || rx_valid!==2'b00)
+                $fatal(1,"clock restart did not drain both queues");
+
+            // Queue data, assert common reset with the destination clock still stopped.
+            #0.037;
+            clock_run[stopped]=0;
+            wait (clk[stopped]==0);
+            goal[running]=writes[running]+9;
+            wait (writes[running]==goal[running]);
+            #(SETTLE_NS);
+            rst_n=0;
+            goal[0]=0; goal[1]=0;
+            #(RESET_NS);
+            if ({tx_ready,rx_valid,full}!==6'b0 ||
+                (tx_used[0]|tx_used[1]|rx_used[0]|rx_used[1])!==0)
+                $fatal(1,"asynchronous reset failed while a clock was stopped");
+            rst_n=1;
+            #(SETTLE_NS);
+            if (tx_ready[stopped]!==1'b0 || tx_ready[running]!==1'b1 || rx_valid!==2'b00)
+                $fatal(1,"reset released on a stopped clock");
+            epoch=epoch+1;
+            goal[running]=13;
+            wait (writes[running]==13);
+            #(SETTLE_NS);
+            clock_run[stopped]=1;
+            goal[stopped]=17;
+            wait (reads[running]==13 && reads[stopped]==17);
+            #(SETTLE_NS);
+            if ((tx_used[0]|tx_used[1]|rx_used[0]|rx_used[1])!==0 || rx_valid!==2'b00)
+                $fatal(1,"fresh traffic did not drain after a stopped-clock reset");
+            $display("CLOCK_PAUSE_PASS stopped=%0d capacity=%0d reverse=%0d",stopped,DEPTH,DEPTH/2);
         end
     endtask
 
     initial begin
         if (!$value$plusargs("SEED=%d",seed)) seed=27;
         salt=seed;
-        $display("CLOCKS A_NS=%0d B_NS=%0d B_PHASE_PS=1701",SWAP_CLOCKS ? 14 : 10, SWAP_CLOCKS ? 10 : 14);
+        $display("CLOCKS A_NS=%0d B_NS=%0d B_PHASE_PS=%0d",2*HALF_A,2*HALF_B,PHASE_B_PS);
         reset_link();
         isolate(0);
         isolate(1);
@@ -141,7 +211,7 @@ module tb_dual_fifo_ip #(
         goal[1]=writes[1]+3*DEPTH+31;
         wait (reads[0]==goal[0] && reads[1]==goal[1]);
         $display("DRAINED epoch=0 ab=%0d ba=%0d",reads[0],reads[1]);
-        #140;
+        #(SETTLE_NS);
         mode[0]=0; mode[1]=0;
         goal[0]=writes[0]+DEPTH; goal[1]=writes[1]+DEPTH;
         wait (full==2'b11 && rx_valid==2'b11);
@@ -150,10 +220,14 @@ module tb_dual_fifo_ip #(
         reset_link();
         goal[0]=19; goal[1]=23;
         wait (reads[0]==19 && reads[1]==23);
-        #140;
+        #(SETTLE_NS);
         if (rx_valid!==0 || writes[0]!=reads[0] || writes[1]!=reads[1])
             $fatal(1,"post-reset queue did not drain");
         $display("POST_RESET AB_WR=%0d AB_RD=%0d BA_WR=%0d BA_RD=%0d",writes[0],reads[0],writes[1],reads[1]);
+        if (CLOCK_CASE!=0) begin
+            test_stopped_clock(0);
+            test_stopped_clock(1);
+        end
         $display("IP_PASS DW=%0d AW=%0d STAGES=%0d SWAP=%0d SEED=%0d",DW,AW,SYNC_STAGES,SWAP_CLOCKS,seed);
         $finish;
     end

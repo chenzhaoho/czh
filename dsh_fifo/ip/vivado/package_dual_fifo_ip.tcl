@@ -36,6 +36,7 @@ proc make_package {root here scratch stage} {
     set core [ipx::current_core]
     set_property name dual_fifo_link $core
     set_property version 1.0 $core
+    set_property core_revision 2 $core
     set_property display_name {Duplex asynchronous FIFO} $core
     set_property description {Two independent ready/valid streams between unrelated clock domains.} $core
     set_property supported_families {artix7 Production} $core

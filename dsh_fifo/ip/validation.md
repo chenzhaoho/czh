@@ -1,6 +1,20 @@
 # 双向异步 FIFO IP 1.0 验收记录
 
-2026-11-28。实现源码提交为 [d7c690d](https://github.com/chenzhaoho/czh/commit/d7c690da99bb2a0e52c44899501b0ceabad70b90)，课程工程起点为 `776f184`。复验环境为 Windows x64、Python 3.13.9、ModelSim-Altera 10.3c、Vivado 2020.2 build 3064766。完整命令见 [使用说明](README.md)。
+2026-11-28。首版实现见 [d7c690d](https://github.com/chenzhaoho/czh/commit/d7c690da99bb2a0e52c44899501b0ceabad70b90)，课程工程起点为 `776f184`。复验环境为 Windows x64、Python 3.13.9、ModelSim-Altera 10.3c、Vivado 2020.2 build 3064766。完整命令见 [使用说明](README.md)。
+
+## 1.0 修订 2 的复验
+
+对照《异步FIFO通道验证与缺陷分析报告》，用发布包的 RTL 重跑 G1 和 G3。A→B、B→A 各通过 S1–S6，共 24/24。每方向的写满和排空分别为 256/256 或 64/64 字，错字均为 0。满时保持 valid、空时保持 ready 各 300 拍，成功计数无额外增长。该 IP 的读取路径使用 FWFT，读指针在外部读握手时推进。附件 G5 的预取输出寄存器和 G6 的同步读组合属于 `fifo_channel` 的实现选项。
+
+在实际 Vivado IP Catalog 实例中，A 端使用 BUFGMUX 选择 10 ns 或 19 ns 时钟，B 端为 14 ns。首版 XDC 尝试把 `10.000 19.000` 作为一个浮点数计算，Vivado 给出 critical warning，Gray 路径缺少 datapath-only 例外。修订后从实际 Gray 寄存器的时钟引脚取时钟集合，给有效模式统一施加 10 ns 限时。精简参考工程另用 A 端 9 ns / 19 ns、B 端 14 ns 重做布线后分析。四组 28 位 Gray 路径和两种 A 模式下的 RAM 捕获均有 9 ns 限时，最大实际 Gray 总线偏斜为 0.812 ns。
+
+| 修订后复验 | 结果 |
+|---|---|
+| 发布包的 8 组参数 × 常规两种时钟次序，种子 93 | 16/16 |
+| 发布包的 8 组参数 × 同相及两种 50:1 时钟次序，种子 111 | 24/24，逐组暂停、恢复 A 和 B 时钟，并在停钟时复位 |
+| Artix-7 参考工程布线 | 两组均通过，10 ns / 14 ns 下裕量与下表一致 |
+
+压力仿真的 2 ns 时钟用于增加跨域采样跨度。FPGA 实现的时钟条件见下方布线表。附加 Vivado 检查的逐位路径、总线偏斜和两种时钟模式下的代表性路径分别记录在 `compact/clock_modes/gray_paths.tsv`、`bus_skew.rpt` 和 `clock_modes.tsv`。
 
 ## 从端口检验实际收发
 

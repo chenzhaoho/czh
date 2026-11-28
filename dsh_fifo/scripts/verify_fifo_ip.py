@@ -52,6 +52,8 @@ def main():
     parser.add_argument("--seed", type=int, default=27)
     parser.add_argument("--component", type=Path,
                         help="Compile the simulation file set in a packaged component.xml")
+    parser.add_argument("--stress", action="store_true",
+                        help="Test coincident edges and both 50:1 clock orders, including stop and reset")
     args = parser.parse_args()
     if not 0 <= args.seed <= 2147483647:
         parser.error("seed must fit a nonnegative signed 32-bit integer")
@@ -68,20 +70,28 @@ def main():
     run([simulator / "vlog.exe", "-sv", *sources,
          ROOT / "tb/tb_dual_fifo_ip.sv"], session, session / "compile.log", 120)
     results = []
-    for dw, aw, stages, swap in itertools.product((16, 32), (6, 8), (2, 3), (0, 1)):
+    clocks = ((1, 0), (2, 0), (2, 1)) if args.stress else ((0, 0), (0, 1))
+    for dw, aw, stages, (clock_case, swap) in itertools.product((16, 32), (6, 8), (2, 3), clocks):
         marker = f"IP_PASS DW={dw} AW={aw} STAGES={stages} SWAP={swap} SEED={args.seed}"
-        log = session / f"dw{dw}_aw{aw}_s{stages}_swap{swap}.log"
+        required = {marker}
+        if clock_case:
+            for stopped in (0, 1):
+                required.add(f"CLOCK_PAUSE_PASS stopped={stopped} capacity={1 << aw} reverse={1 << (aw - 1)}")
+        suffix = f"_clock{clock_case}" if clock_case else ""
+        log = session / f"dw{dw}_aw{aw}_s{stages}_swap{swap}{suffix}.log"
         command = [simulator / "vsim.exe", "-c", "-quiet", "-onfinish", "stop",
                    f"-gDW={dw}", f"-gAW={aw}", f"-gSYNC_STAGES={stages}",
-                   f"-gSWAP_CLOCKS={swap}", "work.tb_dual_fifo_ip", f"+SEED={args.seed}",
+                   f"-gSWAP_CLOCKS={swap}", f"-gCLOCK_CASE={clock_case}",
+                   "work.tb_dual_fifo_ip", f"+SEED={args.seed}",
                    "-do", "onerror {quit -code 1}; run -all; quit -f"]
         try:
             output = run(command, session, log, 120)
-            passed = any(line.removeprefix("# ").strip() == marker for line in output.splitlines())
+            lines = {line.removeprefix("# ").strip() for line in output.splitlines()}
+            passed = required.issubset(lines)
         except (subprocess.SubprocessError, OSError) as error:
             print(error, flush=True)
             passed = False
-        results.append(dict(dw=dw, aw=aw, stages=stages, swap=swap, seed=args.seed,
+        results.append(dict(dw=dw, aw=aw, stages=stages, swap=swap, clock_case=clock_case, seed=args.seed,
                             passed=passed, log=log.name))
         print(f"{'PASS' if passed else 'FAIL'} {log.name}", flush=True)
     (session / "matrix.json").write_text(json.dumps(results, indent=2), encoding="utf-8")

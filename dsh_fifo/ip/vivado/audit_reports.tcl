@@ -34,7 +34,7 @@ proc audit_routing {folder} {
     return $nets(routed)
 }
 
-proc audit_skew {folder aw} {
+proc audit_skew {folder aw {budget 10.0}} {
     set counts {}
     set width [expr {$aw+1}]
     set worst 0.0
@@ -47,11 +47,11 @@ proc audit_skew {folder aw} {
             if {$bits!=$width} { error "Wrong number of skew endpoints: $bits" }
             dict incr counts $key
         } elseif {[regexp {^Requirement:\s*([0-9.]+)ns} $line -> ns]} {
-            if {$ns!=10.0} { error "Unexpected example skew budget: $ns" }
+            if {$ns!=$budget} { error "Unexpected example skew budget: $ns (expected $budget)" }
             dict incr counts $key
         } elseif {[regexp {^Slack \(([^)]+)\)\s*:\s*([-0-9.]+)ns} $line -> status slack]} {
             if {$status ne "MET" || $slack<0} { error "Bus skew failed: $line" }
-            set worst [expr {max($worst,10.0-$slack)}]
+            set worst [expr {max($worst,$budget-$slack)}]
             dict incr counts $key
         }
     }

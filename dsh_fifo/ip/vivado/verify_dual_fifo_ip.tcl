@@ -21,7 +21,7 @@ proc complete_run {run} {
     }
 }
 
-proc audit_pointers {folder aw stages} {
+proc audit_pointers {folder aw stages {budget 10.0}} {
     set expected [expr {$aw+1}]
     set audit [open [file join $folder gray_paths.tsv] w]
     puts $audit "fifo\tpointer\tstages\tsource\tendpoint\trequirement_ns\tslack_ns\tstage_min_setup_ns"
@@ -48,8 +48,9 @@ proc audit_pointers {folder aw stages} {
                 }
                 set bound [get_property REQUIREMENT $path]
                 set slack [get_property SLACK $path]
-                if {![string match "*MaxDelay*datapath_only*" [get_property EXCEPTION $path]] || abs($bound-10.0)>0.001 || $slack<0} {
-                    error "Missing or failing 10 ns datapath-only constraint to $d"
+                if {![string match "*MaxDelay*datapath_only*" [get_property EXCEPTION $path]] ||
+                    abs($bound-$budget)>0.001 || $slack<0} {
+                    error "Missing or failing $budget ns datapath-only constraint to $d"
                 }
                 set stage_slacks {}
                 set prev $cell
@@ -68,6 +69,40 @@ proc audit_pointers {folder aw stages} {
         }
     }
     close $audit
+}
+
+# Re-time the routed compact fixture under a faster and a slower setting of
+# the same input. Clear the original limits so a missing constraint fails.
+proc audit_clock_modes {folder xdc aw stages} {
+    file mkdir $folder
+    reset_timing
+    create_clock -name clk_a_fast -period 9 [get_ports clk_a]
+    create_clock -add -name clk_a_slow -period 19 [get_ports clk_a]
+    create_clock -name clk_b -period 14 [get_ports clk_b]
+    set_clock_groups -logically_exclusive -group [get_clocks clk_a_fast] -group [get_clocks clk_a_slow]
+    read_xdc -cells link/inst $xdc
+    report_exceptions -file [file join $folder exceptions.rpt]
+    audit_pointers $folder $aw $stages 9.0
+    report_bus_skew -file [file join $folder bus_skew.rpt]
+    set skew [audit_skew $folder $aw 9.0]
+    set first [get_pins -of_objects [get_cells -hier -regexp {(.*/)?u_ab/u_sync_wr_ptr/sync_chain_reg\[0\]\[0\]}] -filter {REF_PIN_NAME == D}]
+    set reverse_ram [get_cells -hier -filter {NAME =~ *u_ba/mem_reg* && IS_PRIMITIVE && REF_NAME =~ RAMD*}]
+    set launches [get_pins -of_objects $reverse_ram -filter {REF_PIN_NAME == CLK}]
+    set fp [open [file join $folder clock_modes.tsv] w]
+    puts $fp "clock\tpath\trequirement_ns\tslack_ns"
+    foreach clock {clk_a_fast clk_a_slow} {
+        set gray [get_timing_paths -quiet -from [get_clocks $clock] -to $first]
+        set ram [get_timing_paths -quiet -from $launches -to [get_clocks $clock]]
+        foreach {name path} [list gray $gray ram $ram] {
+            if {[llength $path]!=1 || ![string match "*MaxDelay*datapath_only*" [get_property EXCEPTION $path]] ||
+                [get_property REQUIREMENT $path]!=9.0 || [get_property SLACK $path]<0} {
+                error "Missing or failing $name constraint in timing mode $clock"
+            }
+            puts $fp "$clock\t$name\t[get_property REQUIREMENT $path]\t[get_property SLACK $path]"
+        }
+    }
+    close $fp
+    puts "IP_CLOCK_MODES_PASS max_skew_ns=$skew $folder"
 }
 
 proc verify_config {repo example folder dw aw stages ooc} {
@@ -114,6 +149,10 @@ proc verify_config {repo example folder dw aw stages ooc} {
     set hold [get_property SLACK [get_timing_paths -delay_type min]]
     if {![string is double -strict $setup] || ![string is double -strict $hold] || $setup<0 || $hold<0} {
         error "Timing did not close: setup=$setup hold=$hold"
+    }
+    if {!$ooc} {
+        set scoped_xdc [file join $repo dual_fifo_link_1_0 src dual_fifo_link.xdc]
+        audit_clock_modes [file join $folder clock_modes] $scoped_xdc $aw $stages
     }
     set fp [open [file join $folder result.txt] w]
     puts $fp "DW=$dw AW=$aw SYNC_STAGES=$stages OOC=$ooc SETUP_NS=$setup HOLD_NS=$hold"

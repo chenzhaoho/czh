@@ -1,7 +1,15 @@
-# Scoped to one IP instance; the consuming design supplies both primary clocks.
-# Bound propagation, including inter-bit skew, to the faster of the two periods.
-set duplex_ta [get_property PERIOD [get_clocks -of_objects [get_ports clk_a]]]
-set duplex_tb [get_property PERIOD [get_clocks -of_objects [get_ports clk_b]]]
+# Scoped to one IP instance. Discover the clocks on the synthesized register
+# pins, which also works when the IP boundary clock ports were renamed.
+set duplex_a_q [get_cells -hier -regexp {(.*/)?(u_ab/wr|u_ba/rd)_gray_reg\[[0-9]+\]}]
+set duplex_b_q [get_cells -hier -regexp {(.*/)?(u_ab/rd|u_ba/wr)_gray_reg\[[0-9]+\]}]
+set duplex_a_c [get_pins -of_objects $duplex_a_q -filter {REF_PIN_NAME == C}]
+set duplex_b_c [get_pins -of_objects $duplex_b_q -filter {REF_PIN_NAME == C}]
+set duplex_clka [get_clocks -of_objects $duplex_a_c]
+set duplex_clkb [get_clocks -of_objects $duplex_b_c]
+# One pin can carry multiple timing clocks. Use the shortest possible period,
+# and keep the full clock collections for bounding the RAM read paths below.
+set duplex_ta [get_property -min PERIOD $duplex_clka]
+set duplex_tb [get_property -min PERIOD $duplex_clkb]
 set duplex_budget [expr {min($duplex_ta,$duplex_tb)}]
 
 set ab_wr_q [get_cells -hier -regexp {(.*/)?u_ab/wr_gray_reg\[[0-9]+\]}]
@@ -26,5 +34,5 @@ set_bus_skew $duplex_budget -from $ba_rd_q -to $ba_rd_d
 # Constrain only RAM launches into the opposite port's clock, including its user.
 set ab_mem [get_cells -hier -filter {NAME =~ *u_ab/mem_reg* && (REF_NAME =~ RAMD* || REF_NAME =~ RAMS*) && IS_PRIMITIVE}]
 set ba_mem [get_cells -hier -filter {NAME =~ *u_ba/mem_reg* && (REF_NAME =~ RAMD* || REF_NAME =~ RAMS*) && IS_PRIMITIVE}]
-set_max_delay -datapath_only $duplex_budget -from [get_pins -of_objects $ab_mem -filter {REF_PIN_NAME == CLK}] -to [get_clocks -of_objects [get_ports clk_b]]
-set_max_delay -datapath_only $duplex_budget -from [get_pins -of_objects $ba_mem -filter {REF_PIN_NAME == CLK}] -to [get_clocks -of_objects [get_ports clk_a]]
+set_max_delay -datapath_only $duplex_budget -from [get_pins -of_objects $ab_mem -filter {REF_PIN_NAME == CLK}] -to $duplex_clkb
+set_max_delay -datapath_only $duplex_budget -from [get_pins -of_objects $ba_mem -filter {REF_PIN_NAME == CLK}] -to $duplex_clka
